@@ -1,6 +1,6 @@
 use std::fmt::Display;
 use std::fs::read_to_string;
-use std::io::stdin;
+use std::io::{Write, stdin, stdout};
 
 use crate::exit::SYNTAX_ERROR;
 use crate::scanner::Scanner;
@@ -42,9 +42,13 @@ impl Lox {
 
         loop {
             print!("> ");
+            stdout().lock().flush()?;
+
+            line.clear();
             input.read_line(&mut line)?;
 
             if line.is_empty() {
+                println!();
                 break;
             }
 

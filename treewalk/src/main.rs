@@ -5,17 +5,17 @@ fn main() -> std::io::Result<()> {
     let mut args = std::env::args();
     let len = args.len();
 
-    if len > 1 {
+    if len > 2 {
         eprintln!("Usage: treewalk [script]");
         std::process::exit(TOO_MANY_ARGS);
     }
 
     let mut lox = Lox::new();
 
-    if len == 1 {
+    if len == 2 {
         let path = args.next().unwrap();
         lox.run_file(&path)?;
-    } else if len == 0 {
+    } else if len == 1 {
         lox.run_prompt()?;
     }
 
