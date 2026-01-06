@@ -20,3 +20,21 @@ impl Display for Object {
         write!(f, "{repr}")
     }
 }
+
+impl From<&str> for Object {
+    fn from(value: &str) -> Self {
+        Object::String(value.to_owned())
+    }
+}
+
+impl From<f64> for Object {
+    fn from(value: f64) -> Self {
+        Object::Number(value)
+    }
+}
+
+impl From<bool> for Object {
+    fn from(value: bool) -> Self {
+        Object::Boolean(value)
+    }
+}
