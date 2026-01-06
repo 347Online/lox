@@ -1,5 +1,16 @@
 use crate::lox::Lox;
-use crate::token::{Object, Token, TokenType};
+use crate::object::Object;
+use crate::token::{Token, TokenType};
+
+fn is_identic(c: char, first: bool) -> bool {
+    if c == '_' {
+        true
+    } else if first {
+        c.is_ascii_alphabetic()
+    } else {
+        c.is_alphanumeric()
+    }
+}
 
 pub struct Scanner<'src> {
     source: &'src str,
@@ -34,13 +45,13 @@ impl<'src> Scanner<'src> {
         c
     }
 
-    fn add_literal(&mut self, kind: TokenType, literal: Object) {
+    fn add_token_literal(&mut self, kind: TokenType, literal: Object) {
         let text = &self.source[self.start..self.current];
         self.tokens.push(Token::new(kind, text, literal, self.line));
     }
 
     fn add_token(&mut self, kind: TokenType) {
-        self.add_literal(kind, Object::Null);
+        self.add_token_literal(kind, Object::Null);
     }
 
     fn catch(&mut self, expected: char) -> bool {
@@ -53,12 +64,96 @@ impl<'src> Scanner<'src> {
         true
     }
 
-    fn peek(&mut self) -> Option<char> {
+    fn peek(&self) -> Option<char> {
         if self.is_at_end() {
             None
         } else {
             Some(self.char_at(self.current))
         }
+    }
+
+    fn peek_next(&self) -> Option<char> {
+        if self.current + 1 > self.source.len() {
+            None
+        } else {
+            Some(self.char_at(self.current + 1))
+        }
+    }
+
+    fn string(&mut self) {
+        while let Some(c) = self.peek()
+            && c != '"'
+        {
+            if c == '\n' {
+                self.line += 1;
+            }
+            self.advance();
+        }
+
+        if self.is_at_end() {
+            Lox::error(self.line, "Unterminated string.");
+            return;
+        }
+
+        self.advance(); // The closing ".
+
+        // Trim the surrounding quotes.
+        let value = &self.source[self.start + 1..self.current - 1];
+        self.add_token_literal(TokenType::String, Object::String(value.to_string()));
+    }
+
+    fn digits(&mut self) {
+        while let Some('0'..='9') = self.peek() {
+            self.advance();
+        }
+    }
+
+    fn number(&mut self) {
+        self.digits();
+
+        // Look for a fractional part.
+        if let Some('.') = self.peek()
+            && self.peek_next().is_some_and(|c| c.is_ascii_digit())
+        {
+            // Consume the "."
+            self.advance();
+            self.digits();
+        }
+
+        let x = self.source[self.start..self.current]
+            .parse()
+            .expect("currently windowed lexeme should always be a valid int or float literal");
+        self.add_token_literal(TokenType::Number, Object::Number(x));
+    }
+
+    fn identifier(&mut self) {
+        while self.peek().is_some_and(|c| is_identic(c, false)) {
+            self.advance();
+        }
+
+        // match &self.source[self.start..self.current] { _ => self. }
+        let kind = match &self.source[self.start..self.current] {
+            "and" => TokenType::And,
+            "class" => TokenType::Class,
+            "else" => TokenType::Else,
+            "false" => TokenType::False,
+            "for" => TokenType::For,
+            "fun" => TokenType::Fun,
+            "if" => TokenType::If,
+            "nil" => TokenType::Nil,
+            "or" => TokenType::Or,
+            "print" => TokenType::Print,
+            "return" => TokenType::Return,
+            "super" => TokenType::Super,
+            "this" => TokenType::This,
+            "true" => TokenType::True,
+            "var" => TokenType::Var,
+            "while" => TokenType::While,
+
+            _ => TokenType::Identifier,
+        };
+
+        self.add_token(kind);
     }
 
     fn scan_token(&mut self) {
@@ -119,8 +214,14 @@ impl<'src> Scanner<'src> {
                 }
             }
 
-            '\n' => self.line += 1,
+            '"' => self.string(),
 
+            c if c.is_ascii_digit() => self.number(),
+
+            c if is_identic(c, true) => self.identifier(),
+
+            // Whitespace
+            '\n' => self.line += 1,
             c if c.is_ascii_whitespace() => (),
 
             _ => Lox::error(self.line, "Unexpected character."),
