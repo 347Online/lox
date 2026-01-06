@@ -3,7 +3,9 @@ use std::fs::read_to_string;
 use std::io::{Write, stdin, stdout};
 
 use crate::exit::SYNTAX_ERROR;
+use crate::parser::Parser;
 use crate::scanner::Scanner;
+use crate::token::{Token, TokenType};
 
 static mut HAD_ERROR: bool = false;
 
@@ -21,13 +23,27 @@ impl Lox {
         let scanner = Scanner::new(source);
         let tokens = scanner.scan_tokens();
 
-        for token in tokens {
-            println!("{token:?}");
+        let mut parser = Parser::new(dbg!(tokens));
+        let expr = parser.parse();
+
+        // Stop if there was a syntax error.
+        if unsafe { HAD_ERROR } {
+            return;
         }
+
+        println!("{expr:#?}")
     }
 
     pub(crate) fn error(line: usize, message: &str) {
         Lox::report(line, "", message);
+    }
+
+    pub(crate) fn error_at(token: &Token, message: &str) {
+        if token.kind() == TokenType::Eof {
+            Lox::report(token.line(), " at end", message);
+        } else {
+            Lox::report(token.line(), format!(" at '{}'", token.lexeme()), message);
+        }
     }
 
     fn report(line: usize, at: impl Display, message: &str) {
