@@ -51,7 +51,7 @@ impl<'src> Scanner<'src> {
     }
 
     fn add_token(&mut self, kind: TokenType) {
-        self.add_token_literal(kind, Object::Null);
+        self.add_token_literal(kind, Object::Nil);
     }
 
     fn catch(&mut self, expected: char) -> bool {
@@ -235,7 +235,7 @@ impl<'src> Scanner<'src> {
         }
 
         self.tokens
-            .push(Token::new(TokenType::Eof, "", Object::Null, self.line));
+            .push(Token::new(TokenType::Eof, "", Object::Nil, self.line));
 
         self.tokens
     }
