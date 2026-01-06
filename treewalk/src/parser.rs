@@ -75,6 +75,31 @@ impl<'src> Parser<'src> {
         ParseError
     }
 
+    fn synchronize(&mut self) {
+        self.advance();
+
+        while !self.is_at_end() {
+            if self.previous().kind() == TokenType::Semicolon {
+                return;
+            }
+
+            match self.peek().kind() {
+                TokenType::Class
+                | TokenType::Fun
+                | TokenType::Var
+                | TokenType::For
+                | TokenType::If
+                | TokenType::While
+                | TokenType::Print
+                | TokenType::Return => return,
+
+                _ => (),
+            }
+
+            self.advance();
+        }
+    }
+
     fn consume(&mut self, kind: TokenType, message: &str) -> Result<&Token<'src>, ParseError> {
         if self.check(kind) {
             return Ok(self.advance());
