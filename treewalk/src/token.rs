@@ -1,5 +1,4 @@
 use crate::object::Object;
-use derive_getters::Getters;
 use std::fmt::{Debug, Display};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -54,12 +53,12 @@ pub enum TokenType {
 }
 
 impl Display for TokenType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{self:?}")
     }
 }
 
-#[derive(Debug, Getters)]
+#[derive(Debug, Clone)]
 pub struct Token<'src> {
     kind: TokenType,
     lexeme: &'src str,
@@ -75,6 +74,22 @@ impl<'src> Token<'src> {
             literal,
             line,
         }
+    }
+
+    pub fn kind(&self) -> TokenType {
+        self.kind
+    }
+
+    pub fn lexeme(&self) -> &'src str {
+        self.lexeme
+    }
+
+    pub fn line(&self) -> usize {
+        self.line
+    }
+
+    pub fn literal(&self) -> &Object {
+        &self.literal
     }
 }
 
