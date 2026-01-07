@@ -7,10 +7,11 @@ use crate::token::{Token, TokenType};
 
 #[derive(Debug, Clone)]
 pub enum Expr<'src> {
-    Literal(Object),
-    Grouping(SubExpr<'src>),
-    Unary(Token<'src>, SubExpr<'src>),
     Binary(Token<'src>, SubExpr<'src>, SubExpr<'src>),
+    Grouping(SubExpr<'src>),
+    Literal(Object),
+    Unary(Token<'src>, SubExpr<'src>),
+    Variable(Token<'src>),
 }
 
 impl<'src> Expr<'src> {
@@ -127,6 +128,7 @@ impl<'a> DerefMut for SubExpr<'a> {
 pub enum Stmt<'src> {
     Expr(Expr<'src>),
     Print(Expr<'src>),
+    Var(Token<'src>, Expr<'src>),
 }
 
 impl<'src> Stmt<'src> {
@@ -135,10 +137,13 @@ impl<'src> Stmt<'src> {
             Stmt::Expr(expr) => {
                 expr.evaluate()?;
             }
+
             Stmt::Print(expr) => {
                 let value = expr.evaluate()?;
                 println!("{value}");
             }
+
+            Stmt::Var(token, expr) => todo!(),
         }
 
         Ok(())

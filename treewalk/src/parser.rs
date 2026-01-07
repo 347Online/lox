@@ -140,6 +140,10 @@ impl<'src> Parser<'src> {
             return Ok(Expr::Grouping(expr.into()));
         }
 
+        if self.catch(&[TT::Identifier]) {
+            return Ok(Expr::Variable(self.previous().clone()));
+        }
+
         Err(self.error("Expect expression."))
     }
 
@@ -187,11 +191,48 @@ impl<'src> Parser<'src> {
         }
     }
 
+    fn var_declaration(&mut self) -> Result<Stmt<'src>, ParseError> {
+        let name = self
+            .consume(TokenType::Identifier, "Expect variable name.")?
+            .clone();
+
+        let initializer = if self.catch(&[TokenType::Equal]) {
+            self.expression()?
+        } else {
+            Expr::nil()
+        };
+
+        self.consume(
+            TokenType::Semicolon,
+            "Expect ';' after variable declaration.",
+        )?;
+
+        Ok(Stmt::Var(name, initializer))
+    }
+
+    fn try_declaration(&mut self) -> Result<Stmt<'src>, ParseError> {
+        if self.catch(&[TokenType::Var]) {
+            return Ok(self.var_declaration()?);
+        }
+
+        Ok(self.statement()?)
+    }
+
+    fn declaration(&mut self) -> Stmt<'src> {
+        match self.try_declaration() {
+            Ok(stmt) => stmt,
+            Err(_) => {
+                self.synchronize();
+                Stmt::Expr(Expr::nil())
+            }
+        }
+    }
+
     fn try_parse(&mut self) -> Result<Vec<Stmt<'src>>, ParseError> {
         let mut statements = vec![];
 
         while !self.is_at_end() {
-            statements.push(self.statement()?);
+            statements.push(self.declaration());
         }
 
         Ok(statements)
