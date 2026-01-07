@@ -1,55 +1,80 @@
+use std::cell::{RefCell, RefMut};
 use std::fmt::Display;
 use std::fs::read_to_string;
 use std::io::{Write, stdin, stdout};
+use std::rc::Rc;
 
-use crate::exit::SYNTAX_ERROR;
+use crate::error::RuntimeError;
+use crate::exit::{RUNTIME_ERROR, SYNTAX_ERROR};
+use crate::interpreter::Interpreter;
 use crate::parser::Parser;
 use crate::scanner::Scanner;
 use crate::token::{Token, TokenType};
 
-static mut HAD_ERROR: bool = false;
+#[derive(Debug)]
+pub struct LoxState {
+    pub had_error: bool,
+    pub had_runtime_error: bool,
+}
+
+impl LoxState {
+    const fn new() -> Self {
+        LoxState {
+            had_error: false,
+            had_runtime_error: false,
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct Lox {
-    // had_error: bool,
+    state: Rc<RefCell<LoxState>>,
+    interpreter: Interpreter,
 }
 
 impl Lox {
     pub fn new() -> Self {
-        Lox {}
+        let state = Rc::new(RefCell::new(LoxState::new()));
+        let interpreter = Interpreter::new(state.clone());
+
+        Lox { state, interpreter }
     }
 
     fn run(&mut self, source: &str) {
-        let scanner = Scanner::new(source);
+        let scanner = Scanner::new(self.state.clone(), source);
         let tokens = scanner.scan_tokens();
 
-        let mut parser = Parser::new(dbg!(tokens));
+        let mut parser = Parser::new(self.state.clone(), tokens);
         let expr = parser.parse();
 
         // Stop if there was a syntax error.
-        if unsafe { HAD_ERROR } {
+        if self.state.borrow().had_error {
             return;
         }
 
-        println!("{expr:#?}")
+        self.interpreter.interpret(expr);
     }
 
-    pub(crate) fn error(line: usize, message: &str) {
-        Lox::report(line, "", message);
+    pub fn error(state: RefMut<LoxState>, line: usize, message: &str) {
+        Lox::report(state, line, "", message);
     }
 
-    pub(crate) fn error_at(token: &Token, message: &str) {
-        if token.kind() == TokenType::Eof {
-            Lox::report(token.line(), " at end", message);
+    pub fn error_at(state: RefMut<LoxState>, token: &Token, message: &str) {
+        if token.kind == TokenType::Eof {
+            Lox::report(state, token.line, " at end", message);
         } else {
-            Lox::report(token.line(), format!(" at '{}'", token.lexeme()), message);
+            Lox::report(
+                state,
+                token.line,
+                format!(" at '{}'", token.lexeme),
+                message,
+            );
         }
     }
 
-    fn report(line: usize, at: impl Display, message: &str) {
+    fn report(mut state: RefMut<LoxState>, line: usize, at: impl Display, message: &str) {
         eprintln!("[line {line} ] Error{at}: {message}");
-        // SAFETY: ???
-        unsafe { HAD_ERROR = true };
+        state.had_error = true;
     }
 
     pub fn run_prompt(&mut self) -> std::io::Result<()> {
@@ -69,8 +94,7 @@ impl Lox {
             }
 
             self.run(&line);
-            // SAFETY: ????
-            unsafe { HAD_ERROR = false };
+            self.state.borrow_mut().had_error = false;
         }
 
         Ok(())
@@ -81,12 +105,20 @@ impl Lox {
 
         self.run(&source);
 
-        // SAFETY: ???
-        if unsafe { HAD_ERROR } {
+        if self.state.borrow().had_error {
             std::process::exit(SYNTAX_ERROR);
         }
 
+        if self.state.borrow().had_runtime_error {
+            std::process::exit(RUNTIME_ERROR)
+        }
+
         Ok(())
+    }
+
+    pub fn runtime_error(mut state: RefMut<LoxState>, err: RuntimeError) {
+        eprintln!("{err}");
+        state.had_runtime_error = true;
     }
 }
 

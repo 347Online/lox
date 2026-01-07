@@ -1,4 +1,7 @@
-use crate::lox::Lox;
+use std::cell::RefCell;
+use std::rc::Rc;
+
+use crate::lox::{Lox, LoxState};
 use crate::object::Object;
 use crate::token::{Token, TokenType};
 
@@ -13,6 +16,7 @@ fn is_identic(c: char, first: bool) -> bool {
 }
 
 pub struct Scanner<'src> {
+    state: Rc<RefCell<LoxState>>,
     source: &'src str,
     tokens: Vec<Token<'src>>,
     start: usize,
@@ -23,8 +27,9 @@ pub struct Scanner<'src> {
 // use TokenType as TT;
 
 impl<'src> Scanner<'src> {
-    pub fn new(source: &'src str) -> Self {
+    pub fn new(state: Rc<RefCell<LoxState>>, source: &'src str) -> Self {
         Scanner {
+            state,
             source,
             tokens: vec![],
             start: 0,
@@ -91,7 +96,7 @@ impl<'src> Scanner<'src> {
         }
 
         if self.is_at_end() {
-            Lox::error(self.line, "Unterminated string.");
+            Lox::error(self.state.borrow_mut(), self.line, "Unterminated string.");
             return;
         }
 
@@ -224,7 +229,7 @@ impl<'src> Scanner<'src> {
             '\n' => self.line += 1,
             c if c.is_ascii_whitespace() => (),
 
-            _ => Lox::error(self.line, "Unexpected character."),
+            _ => Lox::error(self.state.borrow_mut(), self.line, "Unexpected character."),
         }
     }
 

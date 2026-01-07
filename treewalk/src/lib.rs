@@ -1,5 +1,7 @@
 pub mod ast;
+pub mod error;
 pub mod exit;
+pub mod interpreter;
 pub mod lox;
 pub mod object;
 pub mod parser;

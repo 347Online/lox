@@ -8,6 +8,17 @@ pub enum Object {
     Boolean(bool),
 }
 
+impl Object {
+    pub fn is_truthy(&self) -> bool {
+        match self {
+            Object::Nil => false,
+            Object::Boolean(x) => *x,
+
+            _ => true,
+        }
+    }
+}
+
 impl Display for Object {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let repr = match self {
@@ -36,5 +47,20 @@ impl From<f64> for Object {
 impl From<bool> for Object {
     fn from(value: bool) -> Self {
         Object::Boolean(value)
+    }
+}
+
+impl PartialEq for Object {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Object::Nil, Object::Nil) => true,
+            (Object::Nil, _) => false,
+
+            (Object::String(lhs), Object::String(rhs)) => lhs == rhs,
+            (Object::Number(lhs), Object::Number(rhs)) => lhs == rhs,
+            (Object::Boolean(lhs), Object::Boolean(rhs)) => lhs == rhs,
+
+            _ => false,
+        }
     }
 }

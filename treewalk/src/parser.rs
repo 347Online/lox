@@ -1,10 +1,13 @@
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use crate::ast::Expr;
-use crate::lox::Lox;
+use crate::error::ParseError;
+use crate::lox::{Lox, LoxState};
 use crate::token::{Token, TokenType};
 
-pub struct ParseError;
-
 pub struct Parser<'src> {
+    state: Rc<RefCell<LoxState>>,
     tokens: Vec<Token<'src>>,
     current: usize,
 }
@@ -26,8 +29,12 @@ macro_rules! rule {
 }
 
 impl<'src> Parser<'src> {
-    pub fn new(tokens: Vec<Token<'src>>) -> Self {
-        Parser { tokens, current: 0 }
+    pub fn new(state: Rc<RefCell<LoxState>>, tokens: Vec<Token<'src>>) -> Self {
+        Parser {
+            state,
+            tokens,
+            current: 0,
+        }
     }
 
     fn previous(&self) -> &Token<'src> {
@@ -39,14 +46,14 @@ impl<'src> Parser<'src> {
     }
 
     fn is_at_end(&self) -> bool {
-        self.peek().kind() == TokenType::Eof
+        self.peek().kind == TokenType::Eof
     }
 
     fn check(&self, kind: TokenType) -> bool {
         if self.is_at_end() {
             false
         } else {
-            self.peek().kind() == kind
+            self.peek().kind == kind
         }
     }
 
@@ -70,8 +77,8 @@ impl<'src> Parser<'src> {
         self.previous()
     }
 
-    fn error(token: &Token, message: &str) -> ParseError {
-        Lox::error_at(token, message);
+    fn error(&mut self, message: &str) -> ParseError {
+        Lox::error_at(self.state.borrow_mut(), self.peek(), message);
         ParseError
     }
 
@@ -79,11 +86,11 @@ impl<'src> Parser<'src> {
         self.advance();
 
         while !self.is_at_end() {
-            if self.previous().kind() == TokenType::Semicolon {
+            if self.previous().kind == TokenType::Semicolon {
                 return;
             }
 
-            match self.peek().kind() {
+            match self.peek().kind {
                 TokenType::Class
                 | TokenType::Fun
                 | TokenType::Var
@@ -105,7 +112,7 @@ impl<'src> Parser<'src> {
             return Ok(self.advance());
         }
 
-        Err(Parser::error(self.peek(), message))
+        Err(self.error(message))
     }
 
     fn primary(&mut self) -> Result<Expr<'src>, ParseError> {
@@ -124,7 +131,7 @@ impl<'src> Parser<'src> {
         }
 
         if self.catch(&[TT::Number, TT::String]) {
-            return Ok(Expr::literal(self.previous().literal().clone()));
+            return Ok(Expr::literal(self.previous().literal.clone()));
         }
 
         if self.catch(&[TT::LeftParen]) {
@@ -133,7 +140,7 @@ impl<'src> Parser<'src> {
             return Ok(Expr::Grouping(expr.into()));
         }
 
-        Err(Parser::error(self.peek(), "Expect expression."))
+        Err(self.error("Expect expression."))
     }
 
     fn unary(&mut self) -> Result<Expr<'src>, ParseError> {

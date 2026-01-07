@@ -60,10 +60,10 @@ impl Display for TokenType {
 
 #[derive(Debug, Clone)]
 pub struct Token<'src> {
-    kind: TokenType,
-    lexeme: &'src str,
-    line: usize,
-    literal: Object,
+    pub(crate) kind: TokenType,
+    pub(crate) lexeme: &'src str,
+    pub(crate) line: usize,
+    pub(crate) literal: Object,
 }
 
 impl<'src> Token<'src> {
@@ -74,22 +74,6 @@ impl<'src> Token<'src> {
             literal,
             line,
         }
-    }
-
-    pub fn kind(&self) -> TokenType {
-        self.kind
-    }
-
-    pub fn lexeme(&self) -> &'src str {
-        self.lexeme
-    }
-
-    pub fn line(&self) -> usize {
-        self.line
-    }
-
-    pub fn literal(&self) -> &Object {
-        &self.literal
     }
 }
 
