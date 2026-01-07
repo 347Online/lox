@@ -122,3 +122,25 @@ impl<'a> DerefMut for SubExpr<'a> {
         &mut self.0
     }
 }
+
+#[derive(Debug, Clone)]
+pub enum Stmt<'src> {
+    Expr(Expr<'src>),
+    Print(Expr<'src>),
+}
+
+impl<'src> Stmt<'src> {
+    pub fn execute(&self) -> Result<(), RuntimeError<'src>> {
+        match self {
+            Stmt::Expr(expr) => {
+                expr.evaluate()?;
+            }
+            Stmt::Print(expr) => {
+                let value = expr.evaluate()?;
+                println!("{value}");
+            }
+        }
+
+        Ok(())
+    }
+}

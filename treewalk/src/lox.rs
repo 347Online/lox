@@ -45,14 +45,14 @@ impl Lox {
         let tokens = scanner.scan_tokens();
 
         let mut parser = Parser::new(self.state.clone(), tokens);
-        let expr = parser.parse();
+        let statements = parser.parse();
 
         // Stop if there was a syntax error.
         if self.state.borrow().had_error {
             return;
         }
 
-        self.interpreter.interpret(expr);
+        self.interpreter.interpret(statements);
     }
 
     pub fn error(state: RefMut<LoxState>, line: usize, message: &str) {

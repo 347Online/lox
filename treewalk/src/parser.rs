@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::ast::Expr;
+use crate::ast::{Expr, Stmt};
 use crate::error::ParseError;
 use crate::lox::{Lox, LoxState};
 use crate::token::{Token, TokenType};
@@ -163,7 +163,44 @@ impl<'src> Parser<'src> {
         self.equality()
     }
 
-    pub fn parse(&mut self) -> Expr<'src> {
-        self.expression().unwrap_or_default()
+    fn print_statement(&mut self) -> Result<Stmt<'src>, ParseError> {
+        let value = self.expression()?;
+
+        self.consume(TokenType::Semicolon, "Expect ';' after value.")?;
+
+        Ok(Stmt::Print(value))
+    }
+
+    fn expression_statement(&mut self) -> Result<Stmt<'src>, ParseError> {
+        let expr = self.expression()?;
+
+        self.consume(TokenType::Semicolon, "Expect ';' after expression.")?;
+
+        Ok(Stmt::Expr(expr))
+    }
+
+    fn statement(&mut self) -> Result<Stmt<'src>, ParseError> {
+        if self.catch(&[TokenType::Print]) {
+            self.print_statement()
+        } else {
+            self.expression_statement()
+        }
+    }
+
+    fn try_parse(&mut self) -> Result<Vec<Stmt<'src>>, ParseError> {
+        let mut statements = vec![];
+
+        while !self.is_at_end() {
+            statements.push(self.statement()?);
+        }
+
+        Ok(statements)
+    }
+
+    pub fn parse(&mut self) -> Vec<Stmt<'src>> {
+        match self.try_parse() {
+            Ok(statements) => statements,
+            Err(_) => vec![],
+        }
     }
 }
