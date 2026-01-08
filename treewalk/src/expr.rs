@@ -1,8 +1,8 @@
-use std::fmt::Debug;
-use std::ops::{Deref, DerefMut};
-
 use crate::object::Object;
 use crate::token::Token;
+use std::fmt::Debug;
+use std::ops::Deref;
+use std::ops::DerefMut;
 
 #[derive(Debug, Clone)]
 pub enum Expr<'src> {
@@ -72,12 +72,4 @@ impl<'a> DerefMut for SubExpr<'a> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.0.deref_mut()
     }
-}
-
-#[derive(Debug, Clone)]
-pub enum Stmt<'src> {
-    Block(Vec<Stmt<'src>>),
-    Expr(Expr<'src>),
-    Print(Expr<'src>),
-    Var(Token<'src>, Option<Expr<'src>>),
 }

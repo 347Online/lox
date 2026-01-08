@@ -1,9 +1,10 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::ast::{Expr, Stmt};
 use crate::error::ParseError;
+use crate::expr::Expr;
 use crate::lox::{Lox, LoxState};
+use crate::stmt::Stmt;
 use crate::token::{Token, TokenType};
 
 pub struct Parser<'src> {

@@ -2,11 +2,12 @@ use std::cell::RefCell;
 use std::ops::Deref;
 use std::rc::Rc;
 
-use crate::ast::{Expr, Stmt};
 use crate::environment::Environment;
 use crate::error::RuntimeError;
+use crate::expr::Expr;
 use crate::lox::{Lox, LoxState};
 use crate::object::Object;
+use crate::stmt::Stmt;
 use crate::token::TokenType;
 
 #[derive(Debug)]
