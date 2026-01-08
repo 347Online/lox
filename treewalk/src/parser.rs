@@ -77,8 +77,8 @@ impl<'src> Parser<'src> {
         self.previous()
     }
 
-    fn error(&mut self, message: &str) -> ParseError {
-        Lox::error_at(self.state.borrow_mut(), self.peek(), message);
+    fn error(&self, token: &Token<'src>, message: &str) -> ParseError {
+        Lox::error_at(self.state.borrow_mut(), token, message);
         ParseError
     }
 
@@ -112,7 +112,7 @@ impl<'src> Parser<'src> {
             return Ok(self.advance());
         }
 
-        Err(self.error(message))
+        Err(self.error(self.peek(), message))
     }
 
     fn primary(&mut self) -> Result<Expr<'src>, ParseError> {
@@ -144,7 +144,7 @@ impl<'src> Parser<'src> {
             return Ok(Expr::Variable(self.previous().clone()));
         }
 
-        Err(self.error("Expect expression."))
+        Err(self.error(self.peek(), "Expect expression."))
     }
 
     fn unary(&mut self) -> Result<Expr<'src>, ParseError> {
@@ -163,8 +163,25 @@ impl<'src> Parser<'src> {
     rule!(Greater | GreaterEqual | Less | LessEqual => comparison(term));
     rule!(BangEqual | EqualEqual => equality(comparison));
 
+    fn assignment(&mut self) -> Result<Expr<'src>, ParseError> {
+        let expr = self.equality()?;
+
+        if self.catch(&[TokenType::Equal]) {
+            let equals = self.previous().clone();
+            let value = self.assignment()?;
+
+            if let Expr::Variable(name) = &expr {
+                return Ok(Expr::Assign(name.clone(), value.into()));
+            }
+
+            self.error(&equals, "Invalid assignment target.");
+        }
+
+        Ok(expr)
+    }
+
     fn expression(&mut self) -> Result<Expr<'src>, ParseError> {
-        self.equality()
+        self.assignment()
     }
 
     fn print_statement(&mut self) -> Result<Stmt<'src>, ParseError> {

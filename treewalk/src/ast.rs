@@ -6,6 +6,7 @@ use crate::token::Token;
 
 #[derive(Debug, Clone)]
 pub enum Expr<'src> {
+    Assign(Token<'src>, SubExpr<'src>),
     Binary(Token<'src>, SubExpr<'src>, SubExpr<'src>),
     Grouping(SubExpr<'src>),
     Literal(Object),

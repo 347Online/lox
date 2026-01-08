@@ -30,6 +30,16 @@ impl<'src> Environment {
             ))
         }
     }
+
+    pub fn assign(&mut self, name: &Token<'src>, value: &Object) -> Result<(), RuntimeError<'src>> {
+        if self.values.contains_key(name.lexeme) {
+            self.values.insert(name.lexeme.to_owned(), value.clone());
+
+            Ok(())
+        } else {
+            Err(RuntimeError::new(name.clone(), format!("")))
+        }
+    }
 }
 
 impl Default for Environment {

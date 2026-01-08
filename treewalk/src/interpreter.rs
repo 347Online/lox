@@ -12,12 +12,12 @@ use crate::token::TokenType;
 #[derive(Debug)]
 pub struct Interpreter {
     state: Rc<RefCell<LoxState>>,
-    environment: Rc<RefCell<Environment>>,
+    environment: RefCell<Environment>,
 }
 
 impl<'src> Interpreter {
     pub fn new(state: Rc<RefCell<LoxState>>) -> Self {
-        let environment = Rc::new(RefCell::new(Environment::new()));
+        let environment = RefCell::new(Environment::new());
         Interpreter { state, environment }
     }
 
@@ -42,14 +42,14 @@ impl<'src> Interpreter {
                 let (lhs, rhs) = (self.evaluate(lhs.as_ref())?, self.evaluate(rhs.as_ref())?);
 
                 macro_rules! binary {
-                            ($op:tt, $kind:tt) => {{
-                                if let (Object::Number(lhs), Object::Number(rhs)) = (lhs, rhs) {
-                                    Ok(Object::$kind(lhs $op rhs))
-                                } else {
-                                    Err(RuntimeError::num_pair(token.clone()))
+                                    ($op:tt, $kind:tt) => {{
+                                        if let (Object::Number(lhs), Object::Number(rhs)) = (lhs, rhs) {
+                                            Ok(Object::$kind(lhs $op rhs))
+                                        } else {
+                                            Err(RuntimeError::num_pair(token.clone()))
+                                        }
+                                    }};
                                 }
-                            }};
-                        }
 
                 match token.kind {
                     TokenType::Minus => binary!(-, Number)?,
@@ -77,6 +77,12 @@ impl<'src> Interpreter {
                 }
             }
             Expr::Variable(token) => self.environment.borrow().get(token)?.clone(),
+            Expr::Assign(name, expr) => {
+                let value = self.evaluate(expr)?;
+                self.environment.borrow_mut().assign(name, &value)?;
+
+                value
+            }
         };
 
         Ok(value)
