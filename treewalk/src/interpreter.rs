@@ -76,7 +76,7 @@ impl<'src> Interpreter {
                     _ => unreachable!(),
                 }
             }
-            Expr::Variable(token) => self.environment.borrow().get(&token)?.clone(),
+            Expr::Variable(token) => self.environment.borrow().get(token)?.clone(),
         };
 
         Ok(value)

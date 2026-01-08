@@ -212,10 +212,10 @@ impl<'src> Parser<'src> {
 
     fn try_declaration(&mut self) -> Result<Stmt<'src>, ParseError> {
         if self.catch(&[TokenType::Var]) {
-            return Ok(self.var_declaration()?);
+            return self.var_declaration();
         }
 
-        Ok(self.statement()?)
+        self.statement()
     }
 
     fn declaration(&mut self) -> Stmt<'src> {
@@ -239,9 +239,6 @@ impl<'src> Parser<'src> {
     }
 
     pub fn parse(&mut self) -> Vec<Stmt<'src>> {
-        match self.try_parse() {
-            Ok(statements) => statements,
-            Err(_) => vec![],
-        }
+        self.try_parse().unwrap_or_default()
     }
 }
