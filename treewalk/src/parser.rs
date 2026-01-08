@@ -192,6 +192,17 @@ impl<'src> Parser<'src> {
         Ok(Stmt::Print(value))
     }
 
+    fn block(&mut self) -> Result<Vec<Stmt<'src>>, ParseError> {
+        let mut statements = vec![];
+
+        while !self.check(TokenType::RightBrace) && !self.is_at_end() {
+            statements.push(self.declaration());
+        }
+
+        self.consume(TokenType::RightBrace, "Expect '}' after block.")?;
+        Ok(statements)
+    }
+
     fn expression_statement(&mut self) -> Result<Stmt<'src>, ParseError> {
         let expr = self.expression()?;
 
@@ -202,10 +213,13 @@ impl<'src> Parser<'src> {
 
     fn statement(&mut self) -> Result<Stmt<'src>, ParseError> {
         if self.catch(&[TokenType::Print]) {
-            self.print_statement()
-        } else {
-            self.expression_statement()
+            return self.print_statement();
         }
+        if self.catch(&[TokenType::LeftBrace]) {
+            return Ok(Stmt::Block(self.block()?));
+        }
+
+        self.expression_statement()
     }
 
     fn var_declaration(&mut self) -> Result<Stmt<'src>, ParseError> {

@@ -4,8 +4,9 @@ use crate::error::RuntimeError;
 use crate::object::Object;
 use crate::token::Token;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Environment {
+    enclosing: Option<Box<Environment>>,
     values: HashMap<String, Object>,
 }
 
@@ -13,35 +14,55 @@ impl<'src> Environment {
     pub fn new() -> Self {
         let values = HashMap::new();
 
-        Environment { values }
+        Environment {
+            enclosing: None,
+            values,
+        }
+    }
+
+    pub fn new_enclosed(enclosing: Environment) -> Self {
+        let enclosing = Some(Box::new(enclosing));
+        let values = HashMap::new();
+
+        Environment { enclosing, values }
     }
 
     pub fn define(&mut self, name: &'src str, value: Object) {
         self.values.insert(name.to_owned(), value);
     }
 
-    pub fn get(&self, name: &Token<'src>) -> Result<&Object, RuntimeError<'src>> {
+    pub fn get(&self, name: &Token<'src>) -> Result<Object, RuntimeError<'src>> {
         if let Some(value) = self.values.get(name.lexeme) {
-            Ok(value)
-        } else {
-            Err(RuntimeError::new(
-                name.clone(),
-                format!("Undefined variable '{}'.", name.lexeme),
-            ))
+            return Ok(value.clone());
         }
+
+        if let Some(enclosing) = &self.enclosing {
+            return enclosing.get(name);
+        }
+
+        Err(RuntimeError::new(
+            name.clone(),
+            format!("Undefined variable '{}'.", name.lexeme),
+        ))
     }
 
     pub fn assign(&mut self, name: &Token<'src>, value: &Object) -> Result<(), RuntimeError<'src>> {
         if self.values.contains_key(name.lexeme) {
             self.values.insert(name.lexeme.to_owned(), value.clone());
 
-            Ok(())
-        } else {
-            Err(RuntimeError::new(
-                name.clone(),
-                format!("Undefined variable '{}'.", name.lexeme),
-            ))
+            return Ok(());
         }
+
+        if let Some(enclosing) = &mut self.enclosing {
+            enclosing.assign(name, value)?;
+
+            return Ok(());
+        }
+
+        Err(RuntimeError::new(
+            name.clone(),
+            format!("Undefined variable '{}'.", name.lexeme),
+        ))
     }
 }
 
