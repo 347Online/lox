@@ -1,9 +1,8 @@
 use std::fmt::Debug;
 use std::ops::{Deref, DerefMut};
 
-use crate::error::RuntimeError;
 use crate::object::Object;
-use crate::token::{Token, TokenType};
+use crate::token::Token;
 
 #[derive(Debug, Clone)]
 pub enum Expr<'src> {
@@ -24,68 +23,6 @@ impl<'src> Expr<'src> {
 
     pub fn nil() -> Self {
         Expr::Literal(Object::Nil)
-    }
-
-    pub fn evaluate(&self) -> Result<Object, RuntimeError<'src>> {
-        let value = match self {
-            Expr::Literal(value) => value.clone(),
-            Expr::Grouping(expr) => expr.evaluate()?,
-
-            Expr::Unary(token, rhs) => match token.kind {
-                TokenType::Bang => (!rhs.evaluate()?.is_truthy()).into(),
-
-                TokenType::Minus => {
-                    if let Expr::Literal(Object::Number(value)) = &**rhs {
-                        Object::Number(-value)
-                    } else {
-                        return Err(RuntimeError::num(token.clone()));
-                    }
-                }
-
-                _ => unreachable!("no other unary expression"),
-            },
-
-            Expr::Binary(token, lhs, rhs) => {
-                let (lhs, rhs) = (lhs.evaluate()?, rhs.evaluate()?);
-
-                macro_rules! binary {
-                    ($op:tt, $kind:tt) => {{
-                        if let (Object::Number(lhs), Object::Number(rhs)) = (lhs, rhs) {
-                            Ok(Object::$kind(lhs $op rhs))
-                        } else {
-                            Err(RuntimeError::num_pair(token.clone()))
-                        }
-                    }};
-                }
-
-                match token.kind {
-                    TokenType::Minus => binary!(-, Number)?,
-                    TokenType::Slash => binary!(/, Number)?,
-                    TokenType::Star => binary!(*, Number)?,
-
-                    TokenType::Plus => match (lhs, rhs) {
-                        (Object::Number(lhs), Object::Number(rhs)) => (lhs + rhs).into(),
-                        (Object::String(lhs), Object::String(rhs)) => (lhs + &rhs).as_str().into(),
-
-                        _ => {
-                            return Err(RuntimeError::nums_or_strings(token.clone()));
-                        }
-                    },
-
-                    TokenType::Greater => binary!(>, Boolean)?,
-                    TokenType::GreaterEqual => binary!( >=, Boolean)?,
-                    TokenType::Less => binary!(<, Boolean)?,
-                    TokenType::LessEqual => binary!(<=, Boolean)?,
-
-                    TokenType::BangEqual => (lhs != rhs).into(),
-                    TokenType::EqualEqual => (lhs == rhs).into(),
-
-                    _ => unreachable!(),
-                }
-            }
-        };
-
-        Ok(value)
     }
 }
 
@@ -110,17 +47,29 @@ impl<'a> From<Expr<'a>> for SubExpr<'a> {
     }
 }
 
+impl<'a> AsRef<Expr<'a>> for SubExpr<'a> {
+    fn as_ref(&self) -> &Expr<'a> {
+        self.0.as_ref()
+    }
+}
+
+impl<'a> AsMut<Expr<'a>> for SubExpr<'a> {
+    fn as_mut(&mut self) -> &mut Expr<'a> {
+        self.0.as_mut()
+    }
+}
+
 impl<'a> Deref for SubExpr<'a> {
     type Target = Expr<'a>;
 
     fn deref(&self) -> &Self::Target {
-        &self.0
+        self.0.deref()
     }
 }
 
 impl<'a> DerefMut for SubExpr<'a> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+        self.0.deref_mut()
     }
 }
 
@@ -128,24 +77,5 @@ impl<'a> DerefMut for SubExpr<'a> {
 pub enum Stmt<'src> {
     Expr(Expr<'src>),
     Print(Expr<'src>),
-    Var(Token<'src>, Expr<'src>),
-}
-
-impl<'src> Stmt<'src> {
-    pub fn execute(&self) -> Result<(), RuntimeError<'src>> {
-        match self {
-            Stmt::Expr(expr) => {
-                expr.evaluate()?;
-            }
-
-            Stmt::Print(expr) => {
-                let value = expr.evaluate()?;
-                println!("{value}");
-            }
-
-            Stmt::Var(token, expr) => todo!(),
-        }
-
-        Ok(())
-    }
+    Var(Token<'src>, Option<Expr<'src>>),
 }

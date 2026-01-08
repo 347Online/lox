@@ -32,7 +32,7 @@ pub struct Lox {
     interpreter: Interpreter,
 }
 
-impl Lox {
+impl<'src> Lox {
     pub fn new() -> Self {
         let state = Rc::new(RefCell::new(LoxState::new()));
         let interpreter = Interpreter::new(state.clone());
@@ -40,7 +40,7 @@ impl Lox {
         Lox { state, interpreter }
     }
 
-    fn run(&mut self, source: &str) {
+    fn run(&mut self, source: &'src str) {
         let scanner = Scanner::new(self.state.clone(), source);
         let tokens = scanner.scan_tokens();
 

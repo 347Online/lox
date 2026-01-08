@@ -1,23 +1,115 @@
 use std::cell::RefCell;
+use std::ops::Deref;
 use std::rc::Rc;
 
-use crate::ast::Stmt;
+use crate::ast::{Expr, Stmt};
+use crate::environment::Environment;
 use crate::error::RuntimeError;
 use crate::lox::{Lox, LoxState};
+use crate::object::Object;
+use crate::token::TokenType;
 
 #[derive(Debug)]
 pub struct Interpreter {
     state: Rc<RefCell<LoxState>>,
+    environment: Rc<RefCell<Environment>>,
 }
 
 impl<'src> Interpreter {
     pub fn new(state: Rc<RefCell<LoxState>>) -> Self {
-        Interpreter { state }
+        let environment = Rc::new(RefCell::new(Environment::new()));
+        Interpreter { state, environment }
+    }
+
+    fn evaluate(&mut self, expr: &Expr<'src>) -> Result<Object, RuntimeError<'src>> {
+        let value = match expr {
+            Expr::Literal(value) => value.clone(),
+            Expr::Grouping(expr) => self.evaluate(expr.deref())?,
+            Expr::Unary(token, rhs) => match token.kind {
+                TokenType::Bang => (!self.evaluate(rhs.deref())?.is_truthy()).into(),
+
+                TokenType::Minus => {
+                    if let Expr::Literal(Object::Number(value)) = **rhs {
+                        Object::Number(-value)
+                    } else {
+                        return Err(RuntimeError::num(token.clone()));
+                    }
+                }
+
+                _ => unreachable!("no other unary expression"),
+            },
+            Expr::Binary(token, lhs, rhs) => {
+                let (lhs, rhs) = (self.evaluate(lhs.as_ref())?, self.evaluate(rhs.as_ref())?);
+
+                macro_rules! binary {
+                            ($op:tt, $kind:tt) => {{
+                                if let (Object::Number(lhs), Object::Number(rhs)) = (lhs, rhs) {
+                                    Ok(Object::$kind(lhs $op rhs))
+                                } else {
+                                    Err(RuntimeError::num_pair(token.clone()))
+                                }
+                            }};
+                        }
+
+                match token.kind {
+                    TokenType::Minus => binary!(-, Number)?,
+                    TokenType::Slash => binary!(/, Number)?,
+                    TokenType::Star => binary!(*, Number)?,
+
+                    TokenType::Plus => match (lhs, rhs) {
+                        (Object::Number(lhs), Object::Number(rhs)) => (lhs + rhs).into(),
+                        (Object::String(lhs), Object::String(rhs)) => (lhs + &rhs).as_str().into(),
+
+                        _ => {
+                            return Err(RuntimeError::nums_or_strings(token.clone()));
+                        }
+                    },
+
+                    TokenType::Greater => binary!(>, Boolean)?,
+                    TokenType::GreaterEqual => binary!( >=, Boolean)?,
+                    TokenType::Less => binary!(<, Boolean)?,
+                    TokenType::LessEqual => binary!(<=, Boolean)?,
+
+                    TokenType::BangEqual => (lhs != rhs).into(),
+                    TokenType::EqualEqual => (lhs == rhs).into(),
+
+                    _ => unreachable!(),
+                }
+            }
+            Expr::Variable(token) => self.environment.borrow().get(&token)?.clone(),
+        };
+
+        Ok(value)
+    }
+
+    fn execute(&mut self, stmt: &Stmt<'src>) -> Result<(), RuntimeError<'src>> {
+        match stmt {
+            Stmt::Expr(expr) => {
+                self.evaluate(expr)?;
+            }
+
+            Stmt::Print(expr) => {
+                let value = self.evaluate(expr)?;
+                println!("{value}");
+            }
+
+            Stmt::Var(token, initializer) => {
+                let value = if let Some(initializer) = initializer {
+                    self.evaluate(initializer)?
+                } else {
+                    Object::Nil
+                };
+
+                self.environment.borrow_mut().define(token.lexeme, value);
+            }
+        }
+
+        Ok(())
     }
 
     fn try_interpret(&mut self, statements: Vec<Stmt<'src>>) -> Result<(), RuntimeError<'src>> {
         for stmt in statements {
-            stmt.execute()?;
+            self.execute(&stmt)?;
         }
 
         Ok(())

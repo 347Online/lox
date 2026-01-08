@@ -197,9 +197,9 @@ impl<'src> Parser<'src> {
             .clone();
 
         let initializer = if self.catch(&[TokenType::Equal]) {
-            self.expression()?
+            Some(self.expression()?)
         } else {
-            Expr::nil()
+            None
         };
 
         self.consume(
