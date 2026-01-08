@@ -12,22 +12,22 @@ use crate::token::TokenType;
 #[derive(Debug)]
 pub struct Interpreter {
     state: Rc<RefCell<LoxState>>,
-    globals: Environment,
+    environment: Rc<RefCell<Environment>>,
 }
 
 impl<'src> Interpreter {
     pub fn new(state: Rc<RefCell<LoxState>>) -> Self {
-        let globals = Environment::new();
+        let environment = Rc::new(RefCell::new(Environment::new()));
 
-        Interpreter { state, globals }
+        Interpreter { state, environment }
     }
 
-    fn evaluate(expr: &Expr<'src>, env: &mut Environment) -> Result<Object, RuntimeError<'src>> {
+    fn evaluate(&mut self, expr: &Expr<'src>) -> Result<Object, RuntimeError<'src>> {
         let value = match expr {
             Expr::Literal(value) => value.clone(),
-            Expr::Grouping(expr) => Self::evaluate(expr.deref(), env)?,
+            Expr::Grouping(expr) => self.evaluate(expr.deref())?,
             Expr::Unary(token, rhs) => match token.kind {
-                TokenType::Bang => (!Self::evaluate(rhs.deref(), env)?.is_truthy()).into(),
+                TokenType::Bang => (!self.evaluate(rhs.deref())?.is_truthy()).into(),
 
                 TokenType::Minus => {
                     if let Expr::Literal(Object::Number(value)) = **rhs {
@@ -40,10 +40,7 @@ impl<'src> Interpreter {
                 _ => unreachable!("no other unary expression"),
             },
             Expr::Binary(token, lhs, rhs) => {
-                let (lhs, rhs) = (
-                    Self::evaluate(lhs.as_ref(), env)?,
-                    Self::evaluate(rhs.as_ref(), env)?,
-                );
+                let (lhs, rhs) = (self.evaluate(lhs.as_ref())?, self.evaluate(rhs.as_ref())?);
 
                 macro_rules! binary {
                     ($op:tt, $kind:tt) => {{
@@ -80,10 +77,10 @@ impl<'src> Interpreter {
                     _ => unreachable!(),
                 }
             }
-            Expr::Variable(token) => env.get(token)?.clone(),
+            Expr::Variable(token) => self.environment.borrow().get(token)?.clone(),
             Expr::Assign(name, expr) => {
-                let value = Self::evaluate(expr, env)?;
-                env.assign(name, &value)?;
+                let value = self.evaluate(expr)?;
+                self.environment.borrow_mut().assign(name, &value)?;
 
                 value
             }
@@ -92,62 +89,76 @@ impl<'src> Interpreter {
         Ok(value)
     }
 
-    fn execute_block(
+    fn try_execute_block(
+        &mut self,
         statements: &[Stmt<'src>],
-        env: &mut Environment,
+        environment: Rc<RefCell<Environment>>,
     ) -> Result<(), RuntimeError<'src>> {
+        self.environment = environment;
+
         for stmt in statements {
-            Self::execute(stmt, env)?;
+            self.execute(stmt)?;
         }
 
         Ok(())
     }
 
-    fn execute(stmt: &Stmt<'src>, env: &mut Environment) -> Result<(), RuntimeError<'src>> {
+    fn execute_block(
+        &mut self,
+        statements: &[Stmt<'src>],
+        environment: Rc<RefCell<Environment>>,
+    ) -> Result<(), RuntimeError<'src>> {
+        let previous = self.environment.clone();
+
+        let result = self.try_execute_block(statements, environment);
+
+        self.environment = previous;
+
+        result
+    }
+
+    fn execute(&mut self, stmt: &Stmt<'src>) -> Result<(), RuntimeError<'src>> {
         match stmt {
             Stmt::Expr(expr) => {
-                Self::evaluate(expr, env)?;
+                self.evaluate(expr)?;
             }
             Stmt::Print(expr) => {
-                let value = Self::evaluate(expr, env)?;
+                let value = self.evaluate(expr)?;
                 println!("{value}");
             }
             Stmt::Var(token, initializer) => {
                 let value = if let Some(initializer) = initializer {
-                    Self::evaluate(initializer, env)?
+                    self.evaluate(initializer)?
                 } else {
                     Object::Nil
                 };
 
-                env.define(token.lexeme, value);
+                self.environment.borrow_mut().define(token.lexeme, value);
             }
             Stmt::Block(statements) => {
-                Self::execute_block(statements, &mut Environment::new_enclosed(env.clone()))?;
+                let new_env = Rc::new(RefCell::new(Environment::new_enclosed(
+                    self.environment.clone(),
+                )));
+
+                self.execute_block(statements, new_env)?;
             }
         }
 
         Ok(())
     }
 
-    fn try_interpret(
-        statements: Vec<Stmt<'src>>,
-        env: &mut Environment,
-    ) -> Result<(), RuntimeError<'src>> {
+    fn try_interpret(&mut self, statements: Vec<Stmt<'src>>) -> Result<(), RuntimeError<'src>> {
         for stmt in statements {
-            Self::execute(&stmt, env)?;
+            self.execute(&stmt)?;
         }
 
         Ok(())
     }
 
     pub fn interpret(&mut self, statements: Vec<Stmt<'src>>) {
-        let mut globals = self.globals.clone();
-
-        match Self::try_interpret(statements, &mut globals) {
+        match self.try_interpret(statements) {
             Ok(_) => (),
             Err(err) => Lox::runtime_error(self.state.borrow_mut(), err),
         }
-
-        self.globals = globals;
     }
 }
