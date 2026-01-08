@@ -37,7 +37,10 @@ impl<'src> Environment {
 
             Ok(())
         } else {
-            Err(RuntimeError::new(name.clone(), format!("")))
+            Err(RuntimeError::new(
+                name.clone(),
+                format!("Undefined variable '{}'.", name.lexeme),
+            ))
         }
     }
 }
