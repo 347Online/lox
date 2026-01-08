@@ -1,5 +1,6 @@
-use crate::object::Object;
 use std::fmt::{Debug, Display};
+
+use crate::object::Object;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TokenType {

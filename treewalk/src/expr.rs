@@ -1,8 +1,8 @@
+use std::fmt::Debug;
+use std::ops::{Deref, DerefMut};
+
 use crate::object::Object;
 use crate::token::Token;
-use std::fmt::Debug;
-use std::ops::Deref;
-use std::ops::DerefMut;
 
 #[derive(Debug, Clone)]
 pub enum Expr<'src> {
