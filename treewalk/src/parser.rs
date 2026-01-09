@@ -258,14 +258,6 @@ impl<'src> Parser<'src> {
     fn for_statement(&mut self) -> Result<Stmt<'src>, ParseError> {
         self.consume(TokenType::LeftParen, "Expect '(' after 'for'.")?;
 
-        // let initializer;
-        // if self.catch(&[TokenType::Semicolon]) {
-        //     initializer = None;
-        // } else if self.catch(&[TokenType::Var]) {
-        //     initializer = Some(self.var_declaration()?);
-        // } else {
-        //     initializer = Some(self.expression_statement()?);
-        // }
         let initializer = if self.catch(&[TokenType::Semicolon]) {
             None
         } else if self.catch(&[TokenType::Var]) {
@@ -274,38 +266,40 @@ impl<'src> Parser<'src> {
             Some(self.expression_statement()?)
         };
 
-        let mut condition = None;
-        if !self.check(TokenType::Semicolon) {
-            condition = Some(self.expression()?);
-        }
+        let condition = if self.check(TokenType::Semicolon) {
+            None
+        } else {
+            Some(self.expression()?)
+        };
         self.consume(TokenType::Semicolon, "Expect ';' after loop condition.")?;
 
-        let mut increment = None;
-        if !self.check(TokenType::RightParen) {
-            increment = Some(self.expression()?);
-        }
+        let increment = if self.check(TokenType::RightParen) {
+            None
+        } else {
+            Some(self.expression()?)
+        };
         self.consume(TokenType::RightParen, "Expect ')' after for clauses.")?;
 
-        let mut body = self.statement()?;
+        let body = self.statement()?;
 
-        if let Some(increment) = increment {
-            body = Stmt::Block {
+        let body = match increment {
+            Some(increment) => Stmt::Block {
                 statements: vec![body, Stmt::Expr { expr: increment }],
-            }
-        }
-        if condition.is_none() {
-            condition = Some(Expr::literal(true));
-        }
-        body = Stmt::While {
-            condition: condition.unwrap(),
-            body: body.into(),
+            },
+            None => body,
         };
 
-        if let Some(initializer) = initializer {
-            body = Stmt::Block {
+        let condition = condition.unwrap_or(Expr::literal(true));
+        let body = body.into();
+        let body = Stmt::While { condition, body };
+
+        let body = if let Some(initializer) = initializer {
+            Stmt::Block {
                 statements: vec![initializer, body],
             }
-        }
+        } else {
+            body
+        };
 
         Ok(body)
     }
