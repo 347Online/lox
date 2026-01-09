@@ -1,8 +1,14 @@
 use std::cell::{RefCell, RefMut};
 use std::fmt::Display;
 use std::fs::read_to_string;
+#[cfg(not(feature = "fancy-repl"))]
 use std::io::{Write, stdin, stdout};
 use std::rc::Rc;
+
+#[cfg(feature = "fancy-repl")]
+use rustyline::DefaultEditor;
+#[cfg(feature = "fancy-repl")]
+use rustyline::error::ReadlineError;
 
 use crate::error::RuntimeError;
 use crate::exit::{RUNTIME_ERROR, SYNTAX_ERROR};
@@ -77,9 +83,41 @@ impl<'src> Lox {
         state.had_error = true;
     }
 
-    pub fn run_prompt(&mut self) -> std::io::Result<()> {
-        let input = stdin();
+    #[cfg(feature = "fancy-repl")]
+    fn fancy_prompt(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        let mut rl = DefaultEditor::new()?;
+        let history_path = std::env::home_dir().unwrap().join(".cache/lox_history");
+
+        let _ = rl.load_history(&history_path);
+
+        loop {
+            let readline = rl.readline("> ");
+            match readline {
+                Ok(line) => {
+                    rl.add_history_entry(line.as_str())?;
+                    self.run(&line);
+                    self.state.borrow_mut().had_error = false;
+                }
+                Err(ReadlineError::Interrupted) => println!("SIGINT"),
+                Err(ReadlineError::Eof) => {
+                    println!("^D");
+                    break;
+                }
+
+                x => {
+                    x?;
+                }
+            }
+        }
+
+        rl.save_history(&history_path)?;
+        Ok(())
+    }
+
+    #[cfg(not(feature = "fancy-repl"))]
+    fn basic_prompt(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         let mut line = String::new();
+        let input = stdin();
 
         loop {
             print!("> ");
@@ -98,6 +136,18 @@ impl<'src> Lox {
         }
 
         Ok(())
+    }
+
+    pub fn run_prompt(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        #[cfg(feature = "fancy-repl")]
+        {
+            self.fancy_prompt()
+        }
+
+        #[cfg(not(feature = "fancy-repl"))]
+        {
+            self.basic_prompt()
+        }
     }
 
     pub fn run_file(&mut self, path: &str) -> std::io::Result<()> {

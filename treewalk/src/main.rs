@@ -1,7 +1,7 @@
 use treewalk::exit::TOO_MANY_ARGS;
 use treewalk::lox::Lox;
 
-fn main() -> std::io::Result<()> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut args = std::env::args().skip(1);
     let len = args.len();
 
