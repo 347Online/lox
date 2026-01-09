@@ -98,7 +98,10 @@ impl<'src> Lox {
                     self.run(&line);
                     self.state.borrow_mut().had_error = false;
                 }
-                Err(ReadlineError::Interrupted) => println!("SIGINT"),
+                Err(ReadlineError::Interrupted) => {
+                    println!("SIGINT");
+                    break;
+                }
                 Err(ReadlineError::Eof) => {
                     println!("^D");
                     break;

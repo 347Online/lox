@@ -246,13 +246,27 @@ impl<'src> Parser<'src> {
         })
     }
 
+    fn while_statement(&mut self) -> Result<Stmt<'src>, ParseError> {
+        self.consume(TokenType::LeftParen, "Expect '(' after 'while'.")?;
+        let condition = self.expression()?;
+        self.consume(TokenType::RightParen, "Expect ')' after condition.")?;
+        let body = self.statement()?.into();
+
+        Ok(Stmt::While { condition, body })
+    }
+
     fn statement(&mut self) -> Result<Stmt<'src>, ParseError> {
         if self.catch(&[TokenType::If]) {
             return self.if_statement();
         }
+
         if self.catch(&[TokenType::Print]) {
             return self.print_statement();
         }
+
+        if self.catch(&[TokenType::While]) {
+            return self.while_statement();
+        };
 
         if self.catch(&[TokenType::LeftBrace]) {
             let statements = self.block()?;

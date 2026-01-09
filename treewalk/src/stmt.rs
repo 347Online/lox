@@ -24,6 +24,10 @@ pub enum Stmt<'src> {
         name: Token<'src>,
         initializer: Option<Expr<'src>>,
     },
+    While {
+        condition: Expr<'src>,
+        body: SubStmt<'src>,
+    },
 }
 
 #[derive(Clone)]
