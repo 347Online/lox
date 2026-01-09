@@ -197,7 +197,9 @@ impl<'src> Parser<'src> {
         let mut statements = vec![];
 
         while !self.check(TokenType::RightBrace) && !self.is_at_end() {
-            statements.push(self.declaration());
+            if let Some(stmt) = self.declaration() {
+                statements.push(stmt);
+            }
         }
 
         self.consume(TokenType::RightBrace, "Expect '}' after block.")?;
@@ -242,35 +244,33 @@ impl<'src> Parser<'src> {
         Ok(Stmt::Var(name, initializer))
     }
 
-    fn try_declaration(&mut self) -> Result<Stmt<'src>, ParseError> {
-        if self.catch(&[TokenType::Var]) {
-            return self.var_declaration();
-        }
+    fn declaration(&mut self) -> Option<Stmt<'src>> {
+        let result = {
+            if self.catch(&[TokenType::Var]) {
+                self.var_declaration()
+            } else {
+                self.statement()
+            }
+        };
 
-        self.statement()
-    }
-
-    fn declaration(&mut self) -> Stmt<'src> {
-        match self.try_declaration() {
-            Ok(stmt) => stmt,
+        match result {
+            Ok(stmt) => Some(stmt),
             Err(_) => {
                 self.synchronize();
-                Stmt::Expr(Expr::nil())
+                None
             }
         }
     }
 
-    fn try_parse(&mut self) -> Result<Vec<Stmt<'src>>, ParseError> {
+    pub fn parse(&mut self) -> Vec<Stmt<'src>> {
         let mut statements = vec![];
 
         while !self.is_at_end() {
-            statements.push(self.declaration());
+            if let Some(stmt) = self.declaration() {
+                statements.push(stmt);
+            }
         }
 
-        Ok(statements)
-    }
-
-    pub fn parse(&mut self) -> Vec<Stmt<'src>> {
-        self.try_parse().unwrap_or_default()
+        statements
     }
 }

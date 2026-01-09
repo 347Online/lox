@@ -18,7 +18,7 @@ pub struct Interpreter {
 
 impl<'src> Interpreter {
     pub fn new(state: Rc<RefCell<LoxState>>) -> Self {
-        let environment = Rc::new(RefCell::new(Environment::new()));
+        let environment = Environment::new();
 
         Interpreter { state, environment }
     }
@@ -44,13 +44,13 @@ impl<'src> Interpreter {
                 let (lhs, rhs) = (self.evaluate(lhs.as_ref())?, self.evaluate(rhs.as_ref())?);
 
                 macro_rules! binary {
-                    ($op:tt, $kind:tt) => {{
+                    ($op:tt, $kind:tt) => {
                         if let (Object::Number(lhs), Object::Number(rhs)) = (lhs, rhs) {
                             Ok(Object::$kind(lhs $op rhs))
                         } else {
                             Err(RuntimeError::num_pair(token.clone()))
                         }
-                    }};
+                    };
                 }
 
                 match token.kind {
@@ -90,20 +90,6 @@ impl<'src> Interpreter {
         Ok(value)
     }
 
-    fn try_execute_block(
-        &mut self,
-        statements: &[Stmt<'src>],
-        environment: Rc<RefCell<Environment>>,
-    ) -> Result<(), RuntimeError<'src>> {
-        self.environment = environment;
-
-        for stmt in statements {
-            self.execute(stmt)?;
-        }
-
-        Ok(())
-    }
-
     fn execute_block(
         &mut self,
         statements: &[Stmt<'src>],
@@ -111,7 +97,18 @@ impl<'src> Interpreter {
     ) -> Result<(), RuntimeError<'src>> {
         let previous = self.environment.clone();
 
-        let result = self.try_execute_block(statements, environment);
+        let result = 'block: {
+            self.environment = environment;
+
+            for stmt in statements {
+                match self.execute(stmt) {
+                    Ok(_) => (),
+                    x => break 'block x,
+                }
+            }
+
+            Ok(())
+        };
 
         self.environment = previous;
 
@@ -137,27 +134,29 @@ impl<'src> Interpreter {
                 self.environment.borrow_mut().define(token.lexeme, value);
             }
             Stmt::Block(statements) => {
-                let new_env = Rc::new(RefCell::new(Environment::new_enclosed(
-                    self.environment.clone(),
-                )));
-
-                self.execute_block(statements, new_env)?;
+                self.execute_block(
+                    statements,
+                    Environment::new_enclosed(self.environment.clone()),
+                )?;
             }
         }
 
         Ok(())
     }
 
-    fn try_interpret(&mut self, statements: Vec<Stmt<'src>>) -> Result<(), RuntimeError<'src>> {
-        for stmt in statements {
-            self.execute(&stmt)?;
-        }
-
-        Ok(())
-    }
-
     pub fn interpret(&mut self, statements: Vec<Stmt<'src>>) {
-        match self.try_interpret(statements) {
+        let result = 'block: {
+            for stmt in &statements {
+                match self.execute(stmt) {
+                    Ok(_) => (),
+                    x => break 'block x,
+                }
+            }
+
+            Ok(())
+        };
+
+        match result {
             Ok(_) => (),
             Err(err) => Lox::runtime_error(self.state.borrow_mut(), err),
         }

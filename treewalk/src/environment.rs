@@ -13,20 +13,20 @@ pub struct Environment {
 }
 
 impl<'src> Environment {
-    pub fn new() -> Self {
+    pub fn new() -> Rc<RefCell<Self>> {
         let values = HashMap::new();
 
-        Environment {
+        Rc::new(RefCell::new(Environment {
             enclosing: None,
             values,
-        }
+        }))
     }
 
-    pub fn new_enclosed(enclosing: Rc<RefCell<Environment>>) -> Self {
+    pub fn new_enclosed(enclosing: Rc<RefCell<Environment>>) -> Rc<RefCell<Self>> {
         let enclosing = Some(enclosing);
         let values = HashMap::new();
 
-        Environment { enclosing, values }
+        Rc::new(RefCell::new(Environment { enclosing, values }))
     }
 
     pub fn define(&mut self, name: &'src str, value: Object) {
@@ -65,11 +65,5 @@ impl<'src> Environment {
             name.clone(),
             format!("Undefined variable '{}'.", name.lexeme),
         ))
-    }
-}
-
-impl Default for Environment {
-    fn default() -> Self {
-        Self::new()
     }
 }
