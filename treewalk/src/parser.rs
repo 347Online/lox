@@ -19,9 +19,9 @@ macro_rules! rule {
             let mut expr = self.$next()?;
 
             while self.catch(&[TokenType::$kind$(, TokenType::$kinds)*]) {
-                let op = self.previous().clone();
-                let rhs = self.$next()?.clone();
-                expr = Expr::Binary(op, expr.into(), rhs.into());
+                let op = self.previous().clone().into();
+                let rhs = self.$next()?.clone().into();
+                expr = Expr::Binary{ op, lhs: expr.into(), rhs };
             }
 
             Ok(expr)
@@ -136,13 +136,16 @@ impl<'src> Parser<'src> {
         }
 
         if self.catch(&[TT::LeftParen]) {
-            let expr = self.expression()?;
+            let expr = self.expression()?.into();
             self.consume(TT::RightParen, "Expect ')' after expression.")?;
-            return Ok(Expr::Grouping(expr.into()));
+
+            return Ok(Expr::Grouping { expr });
         }
 
         if self.catch(&[TT::Identifier]) {
-            return Ok(Expr::Variable(self.previous().clone()));
+            let name = self.previous().clone();
+
+            return Ok(Expr::Variable { name });
         }
 
         Err(self.error(self.peek(), "Expect expression."))
@@ -151,9 +154,9 @@ impl<'src> Parser<'src> {
     fn unary(&mut self) -> Result<Expr<'src>, ParseError> {
         if self.catch(&[TokenType::Bang, TokenType::Minus]) {
             let op = self.previous().clone();
-            let rhs = self.unary()?;
+            let rhs = self.unary()?.into();
 
-            Ok(Expr::Unary(op, rhs.into()))
+            Ok(Expr::Unary { op, rhs })
         } else {
             self.primary()
         }
@@ -171,8 +174,11 @@ impl<'src> Parser<'src> {
             let equals = self.previous().clone();
             let value = self.assignment()?;
 
-            if let Expr::Variable(name) = &expr {
-                return Ok(Expr::Assign(name.clone(), value.into()));
+            if let Expr::Variable { name } = &expr {
+                let name = name.clone();
+                let value = value.into();
+
+                return Ok(Expr::Assign { name, value });
             }
 
             self.error(&equals, "Invalid assignment target.");
@@ -190,7 +196,7 @@ impl<'src> Parser<'src> {
 
         self.consume(TokenType::Semicolon, "Expect ';' after value.")?;
 
-        Ok(Stmt::Print(value))
+        Ok(Stmt::Print { value })
     }
 
     fn block(&mut self) -> Result<Vec<Stmt<'src>>, ParseError> {
@@ -203,6 +209,7 @@ impl<'src> Parser<'src> {
         }
 
         self.consume(TokenType::RightBrace, "Expect '}' after block.")?;
+
         Ok(statements)
     }
 
@@ -211,15 +218,18 @@ impl<'src> Parser<'src> {
 
         self.consume(TokenType::Semicolon, "Expect ';' after expression.")?;
 
-        Ok(Stmt::Expr(expr))
+        Ok(Stmt::Expr { expr })
     }
 
     fn statement(&mut self) -> Result<Stmt<'src>, ParseError> {
         if self.catch(&[TokenType::Print]) {
             return self.print_statement();
         }
+
         if self.catch(&[TokenType::LeftBrace]) {
-            return Ok(Stmt::Block(self.block()?));
+            let statements = self.block()?;
+
+            return Ok(Stmt::Block { statements });
         }
 
         self.expression_statement()
@@ -241,7 +251,7 @@ impl<'src> Parser<'src> {
             "Expect ';' after variable declaration.",
         )?;
 
-        Ok(Stmt::Var(name, initializer))
+        Ok(Stmt::Var { name, initializer })
     }
 
     fn declaration(&mut self) -> Option<Stmt<'src>> {

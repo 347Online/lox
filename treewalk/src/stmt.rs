@@ -6,10 +6,19 @@ use crate::token::Token;
 
 #[derive(Debug, Clone)]
 pub enum Stmt<'src> {
-    Block(Vec<Stmt<'src>>),
-    Expr(Expr<'src>),
-    Print(Expr<'src>),
-    Var(Token<'src>, Option<Expr<'src>>),
+    Block {
+        statements: Vec<Stmt<'src>>,
+    },
+    Expr {
+        expr: Expr<'src>,
+    },
+    Print {
+        value: Expr<'src>,
+    },
+    Var {
+        name: Token<'src>,
+        initializer: Option<Expr<'src>>,
+    },
 }
 
 #[derive(Clone)]

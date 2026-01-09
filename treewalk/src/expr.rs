@@ -6,12 +6,28 @@ use crate::token::Token;
 
 #[derive(Debug, Clone)]
 pub enum Expr<'src> {
-    Assign(Token<'src>, SubExpr<'src>),
-    Binary(Token<'src>, SubExpr<'src>, SubExpr<'src>),
-    Grouping(SubExpr<'src>),
-    Literal(Object),
-    Unary(Token<'src>, SubExpr<'src>),
-    Variable(Token<'src>),
+    Assign {
+        name: Token<'src>,
+        value: SubExpr<'src>,
+    },
+    Binary {
+        op: Token<'src>,
+        lhs: SubExpr<'src>,
+        rhs: SubExpr<'src>,
+    },
+    Grouping {
+        expr: SubExpr<'src>,
+    },
+    Literal {
+        value: Object,
+    },
+    Unary {
+        op: Token<'src>,
+        rhs: SubExpr<'src>,
+    },
+    Variable {
+        name: Token<'src>,
+    },
 }
 
 impl<'src> Expr<'src> {
@@ -19,11 +35,13 @@ impl<'src> Expr<'src> {
     where
         Object: From<T>,
     {
-        Expr::Literal(Object::from(value))
+        let value = value.into();
+
+        Expr::Literal { value }
     }
 
     pub fn nil() -> Self {
-        Expr::Literal(Object::Nil)
+        Expr::Literal { value: Object::Nil }
     }
 }
 

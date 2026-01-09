@@ -25,22 +25,25 @@ impl<'src> Interpreter {
 
     fn evaluate(&mut self, expr: &Expr<'src>) -> Result<Object, RuntimeError<'src>> {
         let value = match expr {
-            Expr::Literal(value) => value.clone(),
-            Expr::Grouping(expr) => self.evaluate(expr.deref())?,
-            Expr::Unary(token, rhs) => match token.kind {
+            Expr::Literal { value } => value.clone(),
+            Expr::Grouping { expr } => self.evaluate(expr.deref())?,
+            Expr::Unary { op, rhs } => match op.kind {
                 TokenType::Bang => (!self.evaluate(rhs.deref())?.is_truthy()).into(),
 
                 TokenType::Minus => {
-                    if let Expr::Literal(Object::Number(value)) = **rhs {
+                    if let Expr::Literal {
+                        value: Object::Number(value),
+                    } = **rhs
+                    {
                         Object::Number(-value)
                     } else {
-                        return Err(RuntimeError::num(token.clone()));
+                        return Err(RuntimeError::num(op.clone()));
                     }
                 }
 
                 _ => unreachable!("no other unary expression"),
             },
-            Expr::Binary(token, lhs, rhs) => {
+            Expr::Binary { op, lhs, rhs } => {
                 let (lhs, rhs) = (self.evaluate(lhs.as_ref())?, self.evaluate(rhs.as_ref())?);
 
                 macro_rules! binary {
@@ -48,12 +51,12 @@ impl<'src> Interpreter {
                         if let (Object::Number(lhs), Object::Number(rhs)) = (lhs, rhs) {
                             Ok(Object::$kind(lhs $op rhs))
                         } else {
-                            Err(RuntimeError::num_pair(token.clone()))
+                            Err(RuntimeError::num_pair(op.clone()))
                         }
                     };
                 }
 
-                match token.kind {
+                match op.kind {
                     TokenType::Minus => binary!(-, Number)?,
                     TokenType::Slash => binary!(/, Number)?,
                     TokenType::Star => binary!(*, Number)?,
@@ -63,7 +66,7 @@ impl<'src> Interpreter {
                         (Object::String(lhs), Object::String(rhs)) => (lhs + &rhs).as_str().into(),
 
                         _ => {
-                            return Err(RuntimeError::nums_or_strings(token.clone()));
+                            return Err(RuntimeError::nums_or_strings(op.clone()));
                         }
                     },
 
@@ -78,9 +81,9 @@ impl<'src> Interpreter {
                     _ => unreachable!(),
                 }
             }
-            Expr::Variable(token) => self.environment.borrow().get(token)?.clone(),
-            Expr::Assign(name, expr) => {
-                let value = self.evaluate(expr)?;
+            Expr::Variable { name } => self.environment.borrow().get(name)?.clone(),
+            Expr::Assign { name, value } => {
+                let value = self.evaluate(value)?;
                 self.environment.borrow_mut().assign(name, &value)?;
 
                 value
@@ -117,23 +120,23 @@ impl<'src> Interpreter {
 
     fn execute(&mut self, stmt: &Stmt<'src>) -> Result<(), RuntimeError<'src>> {
         match stmt {
-            Stmt::Expr(expr) => {
+            Stmt::Expr { expr } => {
                 self.evaluate(expr)?;
             }
-            Stmt::Print(expr) => {
-                let value = self.evaluate(expr)?;
+            Stmt::Print { value } => {
+                let value = self.evaluate(value)?;
                 println!("{value}");
             }
-            Stmt::Var(token, initializer) => {
+            Stmt::Var { name, initializer } => {
                 let value = if let Some(initializer) = initializer {
                     self.evaluate(initializer)?
                 } else {
                     Object::Nil
                 };
 
-                self.environment.borrow_mut().define(token.lexeme, value);
+                self.environment.borrow_mut().define(name.lexeme, value);
             }
-            Stmt::Block(statements) => {
+            Stmt::Block { statements } => {
                 self.execute_block(
                     statements,
                     Environment::new_enclosed(self.environment.clone()),
