@@ -88,6 +88,18 @@ impl<'src> Interpreter {
 
                 value
             }
+            Expr::Logical { op, lhs, rhs } => {
+                let lhs = self.evaluate(lhs)?;
+                if op.kind == TokenType::Or {
+                    if lhs.is_truthy() {
+                        return Ok(lhs);
+                    }
+                } else if !lhs.is_truthy() {
+                    return Ok(lhs);
+                }
+
+                self.evaluate(rhs)?
+            }
         };
 
         Ok(value)
@@ -141,6 +153,17 @@ impl<'src> Interpreter {
                     statements,
                     Environment::new_enclosed(self.environment.clone()),
                 )?;
+            }
+            Stmt::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
+                if self.evaluate(condition)?.is_truthy() {
+                    self.execute(then_branch)?;
+                } else if let Some(else_branch) = else_branch {
+                    self.execute(else_branch)?;
+                }
             }
         }
 

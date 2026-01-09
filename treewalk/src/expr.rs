@@ -18,6 +18,11 @@ pub enum Expr<'src> {
     Grouping {
         expr: SubExpr<'src>,
     },
+    Logical {
+        op: Token<'src>,
+        lhs: SubExpr<'src>,
+        rhs: SubExpr<'src>,
+    },
     Literal {
         value: Object,
     },

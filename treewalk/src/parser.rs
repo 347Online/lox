@@ -14,18 +14,21 @@ pub struct Parser<'src> {
 }
 
 macro_rules! rule {
-    ($kind:tt$(| $kinds:tt)* => $name:ident($next:ident)) => {
-        pub fn $name(&mut self) -> Result<Expr<'src>, ParseError> {
+    ($kind:tt$(| $kinds:tt)* => $name:ident($next:ident) -> $expr:tt) => {
+        fn $name(&mut self) -> Result<Expr<'src>, ParseError> {
             let mut expr = self.$next()?;
 
             while self.catch(&[TokenType::$kind$(, TokenType::$kinds)*]) {
-                let op = self.previous().clone().into();
-                let rhs = self.$next()?.clone().into();
-                expr = Expr::Binary{ op, lhs: expr.into(), rhs };
+                let op = self.previous().clone();
+                let rhs = self.$next()?.into();
+                expr = Expr::$expr{ op, lhs: expr.into(), rhs };
             }
 
             Ok(expr)
         }
+    };
+    ($kind:tt$(| $kinds:tt)* => $name:ident($next:ident)) => {
+        rule!($kind$(| $kinds)* => $name($next) -> Binary);
     };
 }
 
@@ -58,7 +61,6 @@ impl<'src> Parser<'src> {
         }
     }
 
-    #[inline]
     fn catch(&mut self, kinds: &[TokenType]) -> bool {
         for kind in kinds {
             if self.check(*kind) {
@@ -167,8 +169,11 @@ impl<'src> Parser<'src> {
     rule!(Greater | GreaterEqual | Less | LessEqual => comparison(term));
     rule!(BangEqual | EqualEqual => equality(comparison));
 
+    rule!(And => and(equality) -> Logical);
+    rule!(Or => or(and) -> Logical);
+
     fn assignment(&mut self) -> Result<Expr<'src>, ParseError> {
-        let expr = self.equality()?;
+        let expr = self.or()?;
 
         if self.catch(&[TokenType::Equal]) {
             let equals = self.previous().clone();
@@ -221,7 +226,30 @@ impl<'src> Parser<'src> {
         Ok(Stmt::Expr { expr })
     }
 
+    fn if_statement(&mut self) -> Result<Stmt<'src>, ParseError> {
+        self.consume(TokenType::LeftParen, "Expect '(' after 'if'.")?;
+        let condition = self.expression()?;
+        self.consume(TokenType::RightParen, "Expect ')' after if condition.")?;
+
+        let then_branch = self.statement()?.into();
+        let else_branch = if self.catch(&[TokenType::Else]) {
+            let stmt = self.statement()?.into();
+            Some(stmt)
+        } else {
+            None
+        };
+
+        Ok(Stmt::If {
+            condition,
+            then_branch,
+            else_branch,
+        })
+    }
+
     fn statement(&mut self) -> Result<Stmt<'src>, ParseError> {
+        if self.catch(&[TokenType::If]) {
+            return self.if_statement();
+        }
         if self.catch(&[TokenType::Print]) {
             return self.print_statement();
         }

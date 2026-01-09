@@ -12,6 +12,11 @@ pub enum Stmt<'src> {
     Expr {
         expr: Expr<'src>,
     },
+    If {
+        condition: Expr<'src>,
+        then_branch: SubStmt<'src>,
+        else_branch: Option<SubStmt<'src>>,
+    },
     Print {
         value: Expr<'src>,
     },
