@@ -255,7 +255,65 @@ impl<'src> Parser<'src> {
         Ok(Stmt::While { condition, body })
     }
 
+    fn for_statement(&mut self) -> Result<Stmt<'src>, ParseError> {
+        self.consume(TokenType::LeftParen, "Expect '(' after 'for'.")?;
+
+        // let initializer;
+        // if self.catch(&[TokenType::Semicolon]) {
+        //     initializer = None;
+        // } else if self.catch(&[TokenType::Var]) {
+        //     initializer = Some(self.var_declaration()?);
+        // } else {
+        //     initializer = Some(self.expression_statement()?);
+        // }
+        let initializer = if self.catch(&[TokenType::Semicolon]) {
+            None
+        } else if self.catch(&[TokenType::Var]) {
+            Some(self.var_declaration()?)
+        } else {
+            Some(self.expression_statement()?)
+        };
+
+        let mut condition = None;
+        if !self.check(TokenType::Semicolon) {
+            condition = Some(self.expression()?);
+        }
+        self.consume(TokenType::Semicolon, "Expect ';' after loop condition.")?;
+
+        let mut increment = None;
+        if !self.check(TokenType::RightParen) {
+            increment = Some(self.expression()?);
+        }
+        self.consume(TokenType::RightParen, "Expect ')' after for clauses.")?;
+
+        let mut body = self.statement()?;
+
+        if let Some(increment) = increment {
+            body = Stmt::Block {
+                statements: vec![body, Stmt::Expr { expr: increment }],
+            }
+        }
+        if condition.is_none() {
+            condition = Some(Expr::literal(true));
+        }
+        body = Stmt::While {
+            condition: condition.unwrap(),
+            body: body.into(),
+        };
+
+        if let Some(initializer) = initializer {
+            body = Stmt::Block {
+                statements: vec![initializer, body],
+            }
+        }
+
+        Ok(body)
+    }
+
     fn statement(&mut self) -> Result<Stmt<'src>, ParseError> {
+        if self.catch(&[TokenType::For]) {
+            return self.for_statement();
+        }
         if self.catch(&[TokenType::If]) {
             return self.if_statement();
         }
