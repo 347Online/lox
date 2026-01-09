@@ -22,7 +22,7 @@ impl Object {
 impl Display for Object {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let repr = match self {
-            Object::Nil => "",
+            Object::Nil => "nil",
             Object::String(value) => value,
             Object::Number(x) => &x.to_string(),
             Object::Boolean(x) => &x.to_string(),
