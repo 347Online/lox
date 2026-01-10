@@ -393,9 +393,54 @@ impl<'src> Parser<'src> {
         Ok(Stmt::Var { name, initializer })
     }
 
+    fn function(&mut self, kind: &str) -> Result<Stmt<'src>, ParseError> {
+        let name = self
+            .consume(TokenType::Identifier, &format!("Expect {kind} name."))?
+            .clone();
+        self.consume(
+            TokenType::LeftParen,
+            &format!("Expect '(' after {kind} name."),
+        )?;
+        let mut parameters = vec![];
+        if !self.check(TokenType::RightParen) {
+            loop {
+                if parameters.len() >= MAX_ARGS {
+                    self.error(
+                        self.peek(),
+                        &format!("Can't have more than {MAX_ARGS} parameters."),
+                    );
+                }
+
+                parameters.push(
+                    self.consume(TokenType::Identifier, "Expect parameter name.")?
+                        .clone(),
+                );
+
+                if !self.catch(&[TokenType::Comma]) {
+                    break;
+                }
+            }
+        }
+        self.consume(TokenType::RightParen, "Expect ')' after parameters.")?;
+
+        self.consume(
+            TokenType::LeftBrace,
+            &format!("Expect '{{' before {kind} body."),
+        )?;
+        let body = self.block()?;
+
+        Ok(Stmt::Function {
+            name,
+            parameters,
+            body,
+        })
+    }
+
     fn declaration(&mut self) -> Option<Stmt<'src>> {
         let result = {
-            if self.catch(&[TokenType::Var]) {
+            if self.catch(&[TokenType::Fun]) {
+                self.function("function")
+            } else if self.catch(&[TokenType::Var]) {
                 self.var_declaration()
             } else {
                 self.statement()

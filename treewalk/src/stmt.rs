@@ -12,6 +12,11 @@ pub enum Stmt<'src> {
     Expr {
         expr: Expr<'src>,
     },
+    Function {
+        name: Token<'src>,
+        parameters: Vec<Token<'src>>,
+        body: Vec<Stmt<'src>>,
+    },
     If {
         condition: Expr<'src>,
         then_branch: SubStmt<'src>,
