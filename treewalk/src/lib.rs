@@ -1,3 +1,5 @@
+#![feature(debug_closure_helpers)]
+
 pub mod environment;
 pub mod error;
 pub mod exit;

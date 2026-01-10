@@ -24,6 +24,17 @@ fn stdlib(env: &mut Environment) {
             )
         }),
     );
+
+    env.define(
+        "dbg",
+        native_fn!(1, |_, args| {
+            let x = &args[0];
+
+            println!("{x:#?}");
+
+            Object::Nil
+        }),
+    );
 }
 
 #[derive(Debug)]

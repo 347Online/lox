@@ -18,7 +18,10 @@ impl NativeFn {
 
 impl Debug for NativeFn {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "native code")
+        f.debug_struct("NativeFn")
+            .field("arity", &self.arity)
+            .field_with("code", |f| write!(f, "<$NATIVE>"))
+            .finish()
     }
 }
 
