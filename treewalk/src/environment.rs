@@ -13,13 +13,21 @@ pub struct Environment {
 }
 
 impl<'src> Environment {
-    pub fn new() -> Rc<RefCell<Self>> {
+    pub(crate) fn new_raw() -> Self {
         let values = HashMap::new();
 
-        Rc::new(RefCell::new(Environment {
+        Environment {
             enclosing: None,
             values,
-        }))
+        }
+    }
+
+    pub(crate) fn finish(self) -> Rc<RefCell<Self>> {
+        Rc::new(RefCell::new(self))
+    }
+
+    pub fn new() -> Rc<RefCell<Self>> {
+        Environment::new_raw().finish()
     }
 
     pub fn new_enclosed(enclosing: Rc<RefCell<Environment>>) -> Rc<RefCell<Self>> {

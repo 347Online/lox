@@ -6,11 +6,25 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crate::environment::Environment;
 use crate::error::RuntimeError;
 use crate::expr::Expr;
-use crate::function::Function;
+use crate::function::native_fn;
 use crate::lox::{Lox, LoxState};
 use crate::object::Object;
 use crate::stmt::Stmt;
 use crate::token::TokenType;
+
+fn stdlib(env: &mut Environment) {
+    env.define(
+        "clock",
+        native_fn!(|_, _| {
+            Object::Number(
+                SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs_f64(),
+            )
+        }),
+    );
+}
 
 #[derive(Debug)]
 pub struct Interpreter {
@@ -21,20 +35,12 @@ pub struct Interpreter {
 
 impl<'src> Interpreter {
     pub fn new(state: Rc<RefCell<LoxState>>) -> Self {
-        let globals = Environment::new();
-        let environment = globals.clone();
+        let mut lib = Environment::new_raw();
 
-        globals.borrow_mut().define(
-            "clock",
-            Object::Fn(Function::native(0, |_, _| {
-                Object::Number(
-                    SystemTime::now()
-                        .duration_since(UNIX_EPOCH)
-                        .unwrap()
-                        .as_secs_f64(),
-                )
-            })),
-        );
+        stdlib(&mut lib);
+
+        let globals = lib.finish();
+        let environment = globals.clone();
 
         Interpreter {
             state,
