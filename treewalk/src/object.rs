@@ -1,11 +1,14 @@
 use std::fmt::Display;
 
+use crate::function::Function;
+
 #[derive(Debug, Clone)]
 pub enum Object {
     Nil,
     String(String),
     Number(f64),
     Boolean(bool),
+    Fn(Function),
 }
 
 impl Object {
@@ -26,6 +29,7 @@ impl Display for Object {
             Object::String(value) => value,
             Object::Number(x) => &x.to_string(),
             Object::Boolean(x) => &x.to_string(),
+            Object::Fn(fun) => &fun.to_string(),
         };
 
         write!(f, "{repr}")

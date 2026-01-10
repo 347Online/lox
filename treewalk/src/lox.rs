@@ -17,6 +17,8 @@ use crate::parser::Parser;
 use crate::scanner::Scanner;
 use crate::token::{Token, TokenType};
 
+pub const MAX_ARGS: usize = 255;
+
 #[derive(Debug)]
 pub struct LoxState {
     pub had_error: bool,

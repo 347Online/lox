@@ -15,6 +15,11 @@ pub enum Expr<'src> {
         lhs: SubExpr<'src>,
         rhs: SubExpr<'src>,
     },
+    Call {
+        callee: SubExpr<'src>,
+        paren: Token<'src>,
+        arguments: Vec<Expr<'src>>,
+    },
     Grouping {
         expr: SubExpr<'src>,
     },

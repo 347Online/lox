@@ -1,10 +1,12 @@
 use std::cell::RefCell;
 use std::ops::Deref;
 use std::rc::Rc;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::environment::Environment;
 use crate::error::RuntimeError;
 use crate::expr::Expr;
+use crate::function::Function;
 use crate::lox::{Lox, LoxState};
 use crate::object::Object;
 use crate::stmt::Stmt;
@@ -13,14 +15,32 @@ use crate::token::TokenType;
 #[derive(Debug)]
 pub struct Interpreter {
     state: Rc<RefCell<LoxState>>,
+    globals: Rc<RefCell<Environment>>,
     environment: Rc<RefCell<Environment>>,
 }
 
 impl<'src> Interpreter {
     pub fn new(state: Rc<RefCell<LoxState>>) -> Self {
-        let environment = Environment::new();
+        let globals = Environment::new();
+        let environment = globals.clone();
 
-        Interpreter { state, environment }
+        globals.borrow_mut().define(
+            "clock",
+            Object::Fn(Function::native(0, |_, _| {
+                Object::Number(
+                    SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs_f64(),
+                )
+            })),
+        );
+
+        Interpreter {
+            state,
+            globals,
+            environment,
+        }
     }
 
     fn evaluate(&mut self, expr: &Expr<'src>) -> Result<Object, RuntimeError<'src>> {
@@ -99,6 +119,39 @@ impl<'src> Interpreter {
                 }
 
                 self.evaluate(rhs)?
+            }
+            Expr::Call {
+                callee,
+                paren,
+                arguments,
+            } => {
+                let callee = self.evaluate(callee)?;
+
+                let mut args = vec![];
+                for argument in arguments {
+                    args.push(self.evaluate(argument)?);
+                }
+
+                let Object::Fn(function) = callee else {
+                    let paren = paren.clone();
+                    return Err(RuntimeError::new(
+                        paren,
+                        "Can only call functions and classes",
+                    ));
+                };
+
+                let paren = paren.clone();
+                if arguments.len() != function.arity() {
+                    return Err(RuntimeError::new(
+                        paren,
+                        format!(
+                            "Expected {} arguments but got {}.",
+                            function.arity(),
+                            arguments.len()
+                        ),
+                    ));
+                }
+                function.call(self, &args)?
             }
         };
 

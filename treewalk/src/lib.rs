@@ -2,6 +2,7 @@ pub mod environment;
 pub mod error;
 pub mod exit;
 pub mod expr;
+pub mod function;
 pub mod interpreter;
 pub mod lox;
 pub mod object;

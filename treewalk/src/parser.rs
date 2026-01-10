@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use crate::error::ParseError;
 use crate::expr::Expr;
-use crate::lox::{Lox, LoxState};
+use crate::lox::{Lox, LoxState, MAX_ARGS};
 use crate::stmt::Stmt;
 use crate::token::{Token, TokenType};
 
@@ -153,6 +153,51 @@ impl<'src> Parser<'src> {
         Err(self.error(self.peek(), "Expect expression."))
     }
 
+    fn finish_call(&mut self, callee: Expr<'src>) -> Result<Expr<'src>, ParseError> {
+        let callee = callee.into();
+        let mut arguments = vec![];
+
+        if !self.check(TokenType::RightParen) {
+            loop {
+                if arguments.len() >= MAX_ARGS {
+                    self.error(
+                        self.peek(),
+                        &format!("Can't have more than {MAX_ARGS} arguments."),
+                    );
+                }
+                arguments.push(self.expression()?);
+
+                if !self.catch(&[TokenType::Comma]) {
+                    break;
+                }
+            }
+        }
+
+        let paren = self
+            .consume(TokenType::RightParen, "Expect ')' after arguments.")?
+            .clone();
+
+        Ok(Expr::Call {
+            callee,
+            paren,
+            arguments,
+        })
+    }
+
+    fn call(&mut self) -> Result<Expr<'src>, ParseError> {
+        let mut expr = self.primary()?;
+
+        loop {
+            if self.catch(&[TokenType::LeftParen]) {
+                expr = self.finish_call(expr)?;
+            } else {
+                break;
+            }
+        }
+
+        Ok(expr)
+    }
+
     fn unary(&mut self) -> Result<Expr<'src>, ParseError> {
         if self.catch(&[TokenType::Bang, TokenType::Minus]) {
             let op = self.previous().clone();
@@ -160,7 +205,7 @@ impl<'src> Parser<'src> {
 
             Ok(Expr::Unary { op, rhs })
         } else {
-            self.primary()
+            self.call()
         }
     }
 
