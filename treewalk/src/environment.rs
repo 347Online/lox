@@ -12,7 +12,7 @@ pub struct Environment {
     values: HashMap<String, Object>,
 }
 
-impl<'src> Environment {
+impl Environment {
     pub(crate) fn new_raw() -> Self {
         let values = HashMap::new();
 
@@ -37,12 +37,12 @@ impl<'src> Environment {
         Rc::new(RefCell::new(Environment { enclosing, values }))
     }
 
-    pub fn define(&mut self, name: &'src str, value: Object) {
-        self.values.insert(name.to_owned(), value);
+    pub fn define(&mut self, name: &str, value: &Object) {
+        self.values.insert(name.to_owned(), value.clone());
     }
 
-    pub fn get(&self, name: &Token<'src>) -> Result<Object, RuntimeError<'src>> {
-        if let Some(value) = self.values.get(name.lexeme) {
+    pub fn get(&self, name: &Token) -> Result<Object, RuntimeError> {
+        if let Some(value) = self.values.get(&name.lexeme) {
             return Ok(value.clone());
         }
 
@@ -56,8 +56,8 @@ impl<'src> Environment {
         ))
     }
 
-    pub fn assign(&mut self, name: &Token<'src>, value: &Object) -> Result<(), RuntimeError<'src>> {
-        if self.values.contains_key(name.lexeme) {
+    pub fn assign(&mut self, name: &Token, value: &Object) -> Result<(), RuntimeError> {
+        if self.values.contains_key(&name.lexeme) {
             self.values.insert(name.lexeme.to_owned(), value.clone());
 
             return Ok(());

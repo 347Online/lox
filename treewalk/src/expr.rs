@@ -5,42 +5,42 @@ use crate::object::Object;
 use crate::token::Token;
 
 #[derive(Debug, Clone)]
-pub enum Expr<'src> {
+pub enum Expr {
     Assign {
-        name: Token<'src>,
-        value: SubExpr<'src>,
+        name: Token,
+        value: SubExpr,
     },
     Binary {
-        op: Token<'src>,
-        lhs: SubExpr<'src>,
-        rhs: SubExpr<'src>,
+        op: Token,
+        lhs: SubExpr,
+        rhs: SubExpr,
     },
     Call {
-        callee: SubExpr<'src>,
-        paren: Token<'src>,
-        arguments: Vec<Expr<'src>>,
+        callee: SubExpr,
+        paren: Token,
+        arguments: Vec<Expr>,
     },
     Grouping {
-        expr: SubExpr<'src>,
+        expr: SubExpr,
     },
     Logical {
-        op: Token<'src>,
-        lhs: SubExpr<'src>,
-        rhs: SubExpr<'src>,
+        op: Token,
+        lhs: SubExpr,
+        rhs: SubExpr,
     },
     Literal {
         value: Object,
     },
     Unary {
-        op: Token<'src>,
-        rhs: SubExpr<'src>,
+        op: Token,
+        rhs: SubExpr,
     },
     Variable {
-        name: Token<'src>,
+        name: Token,
     },
 }
 
-impl<'src> Expr<'src> {
+impl Expr {
     pub fn literal<T>(value: T) -> Self
     where
         Object: From<T>,
@@ -55,48 +55,48 @@ impl<'src> Expr<'src> {
     }
 }
 
-impl<'src> Default for Expr<'src> {
+impl Default for Expr {
     fn default() -> Self {
         Expr::nil()
     }
 }
 
 #[derive(Clone)]
-pub struct SubExpr<'a>(Box<Expr<'a>>);
+pub struct SubExpr(Box<Expr>);
 
-impl Debug for SubExpr<'_> {
+impl Debug for SubExpr {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         self.0.fmt(f)
     }
 }
 
-impl<'a> From<Expr<'a>> for SubExpr<'a> {
-    fn from(value: Expr<'a>) -> Self {
+impl From<Expr> for SubExpr {
+    fn from(value: Expr) -> Self {
         SubExpr(Box::new(value))
     }
 }
 
-impl<'a> AsRef<Expr<'a>> for SubExpr<'a> {
-    fn as_ref(&self) -> &Expr<'a> {
+impl AsRef<Expr> for SubExpr {
+    fn as_ref(&self) -> &Expr {
         self.0.as_ref()
     }
 }
 
-impl<'a> AsMut<Expr<'a>> for SubExpr<'a> {
-    fn as_mut(&mut self) -> &mut Expr<'a> {
+impl AsMut<Expr> for SubExpr {
+    fn as_mut(&mut self) -> &mut Expr {
         self.0.as_mut()
     }
 }
 
-impl<'a> Deref for SubExpr<'a> {
-    type Target = Expr<'a>;
+impl Deref for SubExpr {
+    type Target = Expr;
 
     fn deref(&self) -> &Self::Target {
         self.0.deref()
     }
 }
 
-impl<'a> DerefMut for SubExpr<'a> {
+impl DerefMut for SubExpr {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.0.deref_mut()
     }

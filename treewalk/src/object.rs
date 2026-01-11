@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::function::Function;
+use crate::function::{Function, LoxFunction, NativeFn};
 
 #[derive(Debug, Clone)]
 pub enum Object {
@@ -51,6 +51,18 @@ impl From<f64> for Object {
 impl From<bool> for Object {
     fn from(value: bool) -> Self {
         Object::Boolean(value)
+    }
+}
+
+impl From<NativeFn> for Object {
+    fn from(value: NativeFn) -> Self {
+        Object::Fn(Function::Native(value))
+    }
+}
+
+impl From<LoxFunction> for Object {
+    fn from(value: LoxFunction) -> Self {
+        Object::Fn(Function::Lox(value))
     }
 }
 

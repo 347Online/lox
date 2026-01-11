@@ -15,10 +15,10 @@ fn is_identic(c: char, first: bool) -> bool {
     }
 }
 
-pub struct Scanner<'src> {
+pub struct Scanner {
     state: Rc<RefCell<LoxState>>,
-    source: &'src str,
-    tokens: Vec<Token<'src>>,
+    source: String,
+    tokens: Vec<Token>,
     start: usize,
     current: usize,
     line: usize,
@@ -26,8 +26,10 @@ pub struct Scanner<'src> {
 
 // use TokenType as TT;
 
-impl<'src> Scanner<'src> {
-    pub fn new(state: Rc<RefCell<LoxState>>, source: &'src str) -> Self {
+impl Scanner {
+    pub fn new(state: Rc<RefCell<LoxState>>, source: &str) -> Self {
+        let source = source.to_owned();
+
         Scanner {
             state,
             source,
@@ -233,7 +235,7 @@ impl<'src> Scanner<'src> {
         }
     }
 
-    pub fn scan_tokens(mut self) -> Vec<Token<'src>> {
+    pub fn scan_tokens(mut self) -> Vec<Token> {
         while !self.is_at_end() {
             self.start = self.current;
             self.scan_token();

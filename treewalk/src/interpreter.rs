@@ -6,7 +6,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crate::environment::Environment;
 use crate::error::RuntimeError;
 use crate::expr::Expr;
-use crate::function::native_fn;
+use crate::function::{LoxFunction, native_fn};
 use crate::lox::{Lox, LoxState};
 use crate::object::Object;
 use crate::stmt::Stmt;
@@ -15,7 +15,7 @@ use crate::token::TokenType;
 fn stdlib(env: &mut Environment) {
     env.define(
         "clock",
-        native_fn!(|_, _| {
+        &native_fn!(|_, _| {
             Object::Number(
                 SystemTime::now()
                     .duration_since(UNIX_EPOCH)
@@ -27,7 +27,7 @@ fn stdlib(env: &mut Environment) {
 
     env.define(
         "dbg",
-        native_fn!(1, |_, args| {
+        &native_fn!(1, |_, args| {
             let x = &args[0];
 
             println!("{x:#?}");
@@ -40,11 +40,11 @@ fn stdlib(env: &mut Environment) {
 #[derive(Debug)]
 pub struct Interpreter {
     state: Rc<RefCell<LoxState>>,
-    globals: Rc<RefCell<Environment>>,
+    pub globals: Rc<RefCell<Environment>>,
     environment: Rc<RefCell<Environment>>,
 }
 
-impl<'src> Interpreter {
+impl Interpreter {
     pub fn new(state: Rc<RefCell<LoxState>>) -> Self {
         let mut lib = Environment::new_raw();
 
@@ -60,7 +60,7 @@ impl<'src> Interpreter {
         }
     }
 
-    fn evaluate(&mut self, expr: &Expr<'src>) -> Result<Object, RuntimeError<'src>> {
+    fn evaluate(&mut self, expr: &Expr) -> Result<Object, RuntimeError> {
         let value = match expr {
             Expr::Literal { value } => value.clone(),
             Expr::Grouping { expr } => self.evaluate(expr.deref())?,
@@ -175,11 +175,11 @@ impl<'src> Interpreter {
         Ok(value)
     }
 
-    fn execute_block(
+    pub(crate) fn execute_block(
         &mut self,
-        statements: &[Stmt<'src>],
+        statements: &[Stmt],
         environment: Rc<RefCell<Environment>>,
-    ) -> Result<(), RuntimeError<'src>> {
+    ) -> Result<(), RuntimeError> {
         let previous = self.environment.clone();
 
         let result = 'block: {
@@ -200,7 +200,7 @@ impl<'src> Interpreter {
         result
     }
 
-    fn execute(&mut self, stmt: &Stmt<'src>) -> Result<(), RuntimeError<'src>> {
+    fn execute(&mut self, stmt: &Stmt) -> Result<(), RuntimeError> {
         match stmt {
             Stmt::Expr { expr } => {
                 self.evaluate(expr)?;
@@ -216,7 +216,7 @@ impl<'src> Interpreter {
                     Object::Nil
                 };
 
-                self.environment.borrow_mut().define(name.lexeme, value);
+                self.environment.borrow_mut().define(&name.lexeme, &value);
             }
             Stmt::Block { statements } => {
                 self.execute_block(
@@ -240,12 +240,23 @@ impl<'src> Interpreter {
                     self.execute(body)?;
                 }
             }
+            Stmt::Function {
+                name,
+                parameters,
+                body,
+            } => {
+                let function = LoxFunction::new(name.clone(), parameters.clone(), body.clone());
+
+                self.environment
+                    .borrow_mut()
+                    .define(&name.lexeme, &Object::from(function));
+            }
         }
 
         Ok(())
     }
 
-    pub fn interpret(&mut self, statements: Vec<Stmt<'src>>) {
+    pub fn interpret(&mut self, statements: Vec<Stmt>) {
         let result = 'block: {
             for stmt in &statements {
                 match self.execute(stmt) {

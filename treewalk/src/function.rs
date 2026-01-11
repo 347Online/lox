@@ -1,8 +1,11 @@
 use std::fmt::{Debug, Display};
 
+use crate::environment::Environment;
 use crate::error::RuntimeError;
 use crate::interpreter::Interpreter;
 use crate::object::Object;
+use crate::stmt::Stmt;
+use crate::token::Token;
 
 #[derive(Clone)]
 pub struct NativeFn {
@@ -26,8 +29,26 @@ impl Debug for NativeFn {
 }
 
 #[derive(Debug, Clone)]
+pub struct LoxFunction {
+    name: Token,
+    parameters: Vec<Token>,
+    body: Vec<Stmt>,
+}
+
+impl LoxFunction {
+    pub fn new(name: Token, parameters: Vec<Token>, body: Vec<Stmt>) -> Self {
+        LoxFunction {
+            name,
+            parameters,
+            body,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum Function {
     Native(NativeFn),
+    Lox(LoxFunction),
 }
 
 macro_rules! native_fn {
@@ -43,7 +64,7 @@ macro_rules! native_fn {
 
 pub(crate) use native_fn;
 
-impl<'src> Function {
+impl Function {
     pub fn native(arity: usize, code: fn(&mut Interpreter, &[Object]) -> Object) -> Self {
         Function::Native(NativeFn { arity, code })
     }
@@ -51,17 +72,33 @@ impl<'src> Function {
     pub fn arity(&self) -> usize {
         match self {
             Function::Native(f) => f.arity,
+            Function::Lox(declaration) => declaration.parameters.len(),
         }
     }
 
     pub fn call(
         &self,
         interpreter: &mut Interpreter,
-        args: &[Object],
-    ) -> Result<Object, RuntimeError<'src>> {
-        match self {
-            Function::Native(f) => Ok((f.code)(interpreter, args)),
-        }
+        arguments: &[Object],
+    ) -> Result<Object, RuntimeError> {
+        let value = match self {
+            Function::Native(f) => (f.code)(interpreter, arguments),
+
+            Function::Lox(declaration) => {
+                let environment = Environment::new_enclosed(interpreter.globals.clone());
+                for (i, param) in declaration.parameters.iter().enumerate() {
+                    environment
+                        .borrow_mut()
+                        .define(&param.lexeme, &arguments[i]);
+                }
+
+                interpreter.execute_block(&declaration.body, environment)?;
+
+                Object::Nil
+            }
+        };
+
+        Ok(value)
     }
 }
 
@@ -69,6 +106,7 @@ impl Display for Function {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let repr = match self {
             Function::Native(_) => "<native fn>",
+            Function::Lox(declaration) => &format!("<fn {}>", declaration.name.lexeme),
         };
 
         write!(f, "{}", repr)

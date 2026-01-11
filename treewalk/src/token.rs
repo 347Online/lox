@@ -60,15 +60,18 @@ impl Display for TokenType {
 }
 
 #[derive(Debug, Clone)]
-pub struct Token<'src> {
+pub struct Token {
     pub(crate) kind: TokenType,
-    pub(crate) lexeme: &'src str,
+    pub(crate) lexeme: String,
     pub(crate) line: usize,
-    pub(crate) literal: Object,
+    pub(crate) literal: Box<Object>,
 }
 
-impl<'src> Token<'src> {
-    pub fn new(kind: TokenType, lexeme: &'src str, literal: Object, line: usize) -> Self {
+impl Token {
+    pub fn new(kind: TokenType, lexeme: &str, literal: Object, line: usize) -> Self {
+        let lexeme = lexeme.to_owned();
+        let literal = Box::new(literal);
+
         Token {
             kind,
             lexeme,
@@ -78,7 +81,7 @@ impl<'src> Token<'src> {
     }
 }
 
-impl Display for Token<'_> {
+impl Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{} {} {}", self.kind, self.lexeme, self.literal)
     }

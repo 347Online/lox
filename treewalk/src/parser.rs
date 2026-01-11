@@ -7,15 +7,15 @@ use crate::lox::{Lox, LoxState, MAX_ARGS};
 use crate::stmt::Stmt;
 use crate::token::{Token, TokenType};
 
-pub struct Parser<'src> {
+pub struct Parser {
     state: Rc<RefCell<LoxState>>,
-    tokens: Vec<Token<'src>>,
+    tokens: Vec<Token>,
     current: usize,
 }
 
 macro_rules! rule {
     ($kind:tt$(| $kinds:tt)* => $name:ident($next:ident) -> $expr:tt) => {
-        fn $name(&mut self) -> Result<Expr<'src>, ParseError> {
+        fn $name(&mut self) -> Result<Expr, ParseError> {
             let mut expr = self.$next()?;
 
             while self.catch(&[TokenType::$kind$(, TokenType::$kinds)*]) {
@@ -32,8 +32,8 @@ macro_rules! rule {
     };
 }
 
-impl<'src> Parser<'src> {
-    pub fn new(state: Rc<RefCell<LoxState>>, tokens: Vec<Token<'src>>) -> Self {
+impl Parser {
+    pub fn new(state: Rc<RefCell<LoxState>>, tokens: Vec<Token>) -> Self {
         Parser {
             state,
             tokens,
@@ -41,11 +41,11 @@ impl<'src> Parser<'src> {
         }
     }
 
-    fn previous(&self) -> &Token<'src> {
+    fn previous(&self) -> &Token {
         &self.tokens[self.current - 1]
     }
 
-    fn peek(&self) -> &Token<'src> {
+    fn peek(&self) -> &Token {
         &self.tokens[self.current]
     }
 
@@ -72,7 +72,7 @@ impl<'src> Parser<'src> {
         false
     }
 
-    fn advance(&mut self) -> &Token<'src> {
+    fn advance(&mut self) -> &Token {
         if !self.is_at_end() {
             self.current += 1;
         }
@@ -80,7 +80,7 @@ impl<'src> Parser<'src> {
         self.previous()
     }
 
-    fn error(&self, token: &Token<'src>, message: &str) -> ParseError {
+    fn error(&self, token: &Token, message: &str) -> ParseError {
         Lox::error_at(self.state.borrow_mut(), token, message);
         ParseError
     }
@@ -110,7 +110,7 @@ impl<'src> Parser<'src> {
         }
     }
 
-    fn consume(&mut self, kind: TokenType, message: &str) -> Result<&Token<'src>, ParseError> {
+    fn consume(&mut self, kind: TokenType, message: &str) -> Result<&Token, ParseError> {
         if self.check(kind) {
             return Ok(self.advance());
         }
@@ -118,7 +118,7 @@ impl<'src> Parser<'src> {
         Err(self.error(self.peek(), message))
     }
 
-    fn primary(&mut self) -> Result<Expr<'src>, ParseError> {
+    fn primary(&mut self) -> Result<Expr, ParseError> {
         use TokenType as TT;
 
         if self.catch(&[TT::False]) {
@@ -134,7 +134,7 @@ impl<'src> Parser<'src> {
         }
 
         if self.catch(&[TT::Number, TT::String]) {
-            return Ok(Expr::literal(self.previous().literal.clone()));
+            return Ok(Expr::literal(self.previous().literal.as_ref().clone()));
         }
 
         if self.catch(&[TT::LeftParen]) {
@@ -153,7 +153,7 @@ impl<'src> Parser<'src> {
         Err(self.error(self.peek(), "Expect expression."))
     }
 
-    fn finish_call(&mut self, callee: Expr<'src>) -> Result<Expr<'src>, ParseError> {
+    fn finish_call(&mut self, callee: Expr) -> Result<Expr, ParseError> {
         let callee = callee.into();
         let mut arguments = vec![];
 
@@ -184,7 +184,7 @@ impl<'src> Parser<'src> {
         })
     }
 
-    fn call(&mut self) -> Result<Expr<'src>, ParseError> {
+    fn call(&mut self) -> Result<Expr, ParseError> {
         let mut expr = self.primary()?;
 
         loop {
@@ -198,7 +198,7 @@ impl<'src> Parser<'src> {
         Ok(expr)
     }
 
-    fn unary(&mut self) -> Result<Expr<'src>, ParseError> {
+    fn unary(&mut self) -> Result<Expr, ParseError> {
         if self.catch(&[TokenType::Bang, TokenType::Minus]) {
             let op = self.previous().clone();
             let rhs = self.unary()?.into();
@@ -217,7 +217,7 @@ impl<'src> Parser<'src> {
     rule!(And => and(equality) -> Logical);
     rule!(Or => or(and) -> Logical);
 
-    fn assignment(&mut self) -> Result<Expr<'src>, ParseError> {
+    fn assignment(&mut self) -> Result<Expr, ParseError> {
         let expr = self.or()?;
 
         if self.catch(&[TokenType::Equal]) {
@@ -237,11 +237,11 @@ impl<'src> Parser<'src> {
         Ok(expr)
     }
 
-    fn expression(&mut self) -> Result<Expr<'src>, ParseError> {
+    fn expression(&mut self) -> Result<Expr, ParseError> {
         self.assignment()
     }
 
-    fn print_statement(&mut self) -> Result<Stmt<'src>, ParseError> {
+    fn print_statement(&mut self) -> Result<Stmt, ParseError> {
         let value = self.expression()?;
 
         self.consume(TokenType::Semicolon, "Expect ';' after value.")?;
@@ -249,7 +249,7 @@ impl<'src> Parser<'src> {
         Ok(Stmt::Print { value })
     }
 
-    fn block(&mut self) -> Result<Vec<Stmt<'src>>, ParseError> {
+    fn block(&mut self) -> Result<Vec<Stmt>, ParseError> {
         let mut statements = vec![];
 
         while !self.check(TokenType::RightBrace) && !self.is_at_end() {
@@ -263,7 +263,7 @@ impl<'src> Parser<'src> {
         Ok(statements)
     }
 
-    fn expression_statement(&mut self) -> Result<Stmt<'src>, ParseError> {
+    fn expression_statement(&mut self) -> Result<Stmt, ParseError> {
         let expr = self.expression()?;
 
         self.consume(TokenType::Semicolon, "Expect ';' after expression.")?;
@@ -271,7 +271,7 @@ impl<'src> Parser<'src> {
         Ok(Stmt::Expr { expr })
     }
 
-    fn if_statement(&mut self) -> Result<Stmt<'src>, ParseError> {
+    fn if_statement(&mut self) -> Result<Stmt, ParseError> {
         self.consume(TokenType::LeftParen, "Expect '(' after 'if'.")?;
         let condition = self.expression()?;
         self.consume(TokenType::RightParen, "Expect ')' after if condition.")?;
@@ -291,7 +291,7 @@ impl<'src> Parser<'src> {
         })
     }
 
-    fn while_statement(&mut self) -> Result<Stmt<'src>, ParseError> {
+    fn while_statement(&mut self) -> Result<Stmt, ParseError> {
         self.consume(TokenType::LeftParen, "Expect '(' after 'while'.")?;
         let condition = self.expression()?;
         self.consume(TokenType::RightParen, "Expect ')' after condition.")?;
@@ -300,7 +300,7 @@ impl<'src> Parser<'src> {
         Ok(Stmt::While { condition, body })
     }
 
-    fn for_statement(&mut self) -> Result<Stmt<'src>, ParseError> {
+    fn for_statement(&mut self) -> Result<Stmt, ParseError> {
         self.consume(TokenType::LeftParen, "Expect '(' after 'for'.")?;
 
         let initializer = if self.catch(&[TokenType::Semicolon]) {
@@ -349,7 +349,7 @@ impl<'src> Parser<'src> {
         Ok(body)
     }
 
-    fn statement(&mut self) -> Result<Stmt<'src>, ParseError> {
+    fn statement(&mut self) -> Result<Stmt, ParseError> {
         if self.catch(&[TokenType::For]) {
             return self.for_statement();
         }
@@ -374,7 +374,7 @@ impl<'src> Parser<'src> {
         self.expression_statement()
     }
 
-    fn var_declaration(&mut self) -> Result<Stmt<'src>, ParseError> {
+    fn var_declaration(&mut self) -> Result<Stmt, ParseError> {
         let name = self
             .consume(TokenType::Identifier, "Expect variable name.")?
             .clone();
@@ -393,7 +393,7 @@ impl<'src> Parser<'src> {
         Ok(Stmt::Var { name, initializer })
     }
 
-    fn function(&mut self, kind: &str) -> Result<Stmt<'src>, ParseError> {
+    fn function(&mut self, kind: &str) -> Result<Stmt, ParseError> {
         let name = self
             .consume(TokenType::Identifier, &format!("Expect {kind} name."))?
             .clone();
@@ -436,7 +436,7 @@ impl<'src> Parser<'src> {
         })
     }
 
-    fn declaration(&mut self) -> Option<Stmt<'src>> {
+    fn declaration(&mut self) -> Option<Stmt> {
         let result = {
             if self.catch(&[TokenType::Fun]) {
                 self.function("function")
@@ -456,7 +456,7 @@ impl<'src> Parser<'src> {
         }
     }
 
-    pub fn parse(&mut self) -> Vec<Stmt<'src>> {
+    pub fn parse(&mut self) -> Vec<Stmt> {
         let mut statements = vec![];
 
         while !self.is_at_end() {
