@@ -10,15 +10,18 @@ use crate::object::Object;
 use crate::stmt::Stmt;
 use crate::token::Token;
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone)]
 pub struct NativeFn {
+    id: Uuid,
     arity: usize,
     code: fn(&mut Interpreter, &[Object]) -> Object,
 }
 
 impl NativeFn {
     pub fn new(arity: usize, code: fn(&mut Interpreter, &[Object]) -> Object) -> Self {
-        NativeFn { arity, code }
+        let id = Uuid::new_v4();
+
+        NativeFn { id, arity, code }
     }
 }
 
@@ -28,6 +31,20 @@ impl Debug for NativeFn {
             .field("arity", &self.arity)
             .field_with("code", |f| write!(f, "<$NATIVE>"))
             .finish()
+    }
+}
+
+impl PartialEq for NativeFn {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl Eq for NativeFn {}
+
+impl Hash for NativeFn {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
     }
 }
 
@@ -93,7 +110,7 @@ use uuid::Uuid;
 
 impl Function {
     pub fn native(arity: usize, code: fn(&mut Interpreter, &[Object]) -> Object) -> Self {
-        Function::Native(NativeFn { arity, code })
+        Function::Native(NativeFn::new(arity, code))
     }
 
     pub fn arity(&self) -> usize {

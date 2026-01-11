@@ -4,7 +4,7 @@ use ordered_float::OrderedFloat;
 
 use crate::function::{Function, LoxFunction, NativeFn};
 
-#[derive(Debug, Clone, Eq, Hash)]
+#[derive(Debug, Clone)]
 pub enum Object {
     Nil,
     String(String),

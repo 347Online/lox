@@ -14,6 +14,7 @@ use crate::error::Exception;
 use crate::exit::{RUNTIME_ERROR, SYNTAX_ERROR};
 use crate::interpreter::Interpreter;
 use crate::parser::Parser;
+use crate::resolver::Resolver;
 use crate::scanner::Scanner;
 use crate::token::{Token, TokenType};
 
@@ -37,13 +38,13 @@ impl LoxState {
 #[derive(Debug)]
 pub struct Lox {
     state: Rc<RefCell<LoxState>>,
-    interpreter: Interpreter,
+    interpreter: Option<Interpreter>,
 }
 
 impl Lox {
     pub fn new() -> Self {
         let state = Rc::new(RefCell::new(LoxState::new()));
-        let interpreter = Interpreter::new(state.clone());
+        let interpreter = Some(Interpreter::new(state.clone()));
 
         Lox { state, interpreter }
     }
@@ -60,7 +61,12 @@ impl Lox {
             return;
         }
 
-        self.interpreter.interpret(&statements);
+        let mut resolver = Resolver::new(std::mem::take(&mut self.interpreter).unwrap());
+        resolver.resolve_statements(&statements);
+        let mut interpreter = resolver.finish();
+
+        interpreter.interpret(&statements);
+        self.interpreter = Some(interpreter);
     }
 
     pub fn error(state: RefMut<LoxState>, line: usize, message: &str) {

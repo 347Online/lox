@@ -8,6 +8,23 @@ use crate::error::Exception;
 use crate::object::Object;
 use crate::token::Token;
 
+pub trait EnvLookup {
+    fn enclosing(&self) -> Option<Box<Self>>;
+
+    fn ancestor(&self, distance: usize) -> Option<Box<Self>>
+    where
+        Self: Clone,
+    {
+        let mut environment = Box::new(self.clone());
+
+        for _ in 0..distance {
+            environment = environment.enclosing()?;
+        }
+
+        Some(environment)
+    }
+}
+
 #[derive(Debug)]
 pub struct Environment {
     id: Uuid,
@@ -49,6 +66,42 @@ impl Environment {
 
     pub fn define(&mut self, name: &str, value: &Object) {
         self.values.insert(name.to_owned(), value.clone());
+    }
+
+    pub fn ancestor(
+        this: Rc<RefCell<Environment>>,
+        distance: usize,
+    ) -> Option<Rc<RefCell<Environment>>> {
+        let mut environment = Some(this.clone());
+
+        for _ in 0..distance {
+            environment = environment.unwrap().borrow().enclosing.clone();
+        }
+
+        environment
+    }
+
+    pub fn get_at(this: Rc<RefCell<Environment>>, distance: usize, name: &str) -> Object {
+        Self::ancestor(this, distance)
+            .unwrap()
+            .borrow()
+            .values
+            .get(name)
+            .unwrap()
+            .clone()
+    }
+
+    pub fn assign_at(
+        this: Rc<RefCell<Environment>>,
+        distance: usize,
+        name: &Token,
+        value: &Object,
+    ) {
+        Self::ancestor(this, distance)
+            .unwrap()
+            .borrow_mut()
+            .values
+            .insert(name.lexeme.to_owned(), value.clone());
     }
 
     pub fn get(&self, name: &Token) -> Result<Object, Exception> {

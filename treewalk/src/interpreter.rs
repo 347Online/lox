@@ -54,6 +54,7 @@ impl Interpreter {
 
         let globals = lib.finish();
         let environment = globals.clone();
+        #[allow(clippy::mutable_key_type)]
         let locals = HashMap::new();
 
         Interpreter {
@@ -64,9 +65,16 @@ impl Interpreter {
         }
     }
 
-    fn look_up_var(&self, name: &Token, expr: &Expr) -> Object {
-        let distance = self.locals.get(expr);
-        todo!()
+    fn look_up_var(&self, name: &Token, expr: &Expr) -> Result<Object, Exception> {
+        if let Some(distance) = self.locals.get(expr) {
+            Ok(Environment::get_at(
+                self.environment.clone(),
+                *distance,
+                &name.lexeme,
+            ))
+        } else {
+            self.globals.borrow().get(name)
+        }
     }
 
     fn evaluate(&mut self, expr: &Expr) -> Result<Object, Exception> {
@@ -128,10 +136,16 @@ impl Interpreter {
                 }
             }
             // ExprData::Variable { name } => self.environment.borrow().get(name)?.clone(),
-            ExprData::Variable { name } => self.look_up_var(name, expr),
+            ExprData::Variable { name } => self.look_up_var(name, expr)?,
             ExprData::Assign { name, value } => {
                 let value = self.evaluate(value)?;
-                self.environment.borrow_mut().assign(name, &value)?;
+                // self.environment.borrow_mut().assign(name, &value)?;
+                if let Some(distance) = self.locals.get(expr) {
+                    // self.environment.assign
+                    Environment::assign_at(self.environment.clone(), *distance, name, &value);
+                } else {
+                    self.globals.borrow_mut().assign(name, &value)?;
+                }
 
                 value
             }
@@ -296,5 +310,9 @@ impl Interpreter {
             }
             Err(Exception::Return(x)) => unreachable!("Escaped return signal: {x}"),
         }
+    }
+
+    pub(crate) fn resolve(&mut self, expr: &Expr, depth: usize) {
+        self.locals.insert(expr.clone(), depth);
     }
 }

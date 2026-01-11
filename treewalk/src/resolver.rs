@@ -1,10 +1,8 @@
-use std::cell::RefCell;
 use std::collections::HashMap;
-use std::rc::Rc;
 
 use crate::expr::{Expr, ExprData};
 use crate::interpreter::Interpreter;
-use crate::lox::{Lox, LoxState};
+use crate::lox::Lox;
 use crate::stmt::Stmt;
 use crate::token::Token;
 
@@ -14,24 +12,18 @@ pub struct Resolver {
 }
 
 impl Resolver {
-    pub fn new(state: Rc<RefCell<LoxState>>) -> Self {
-        let interpreter = Interpreter::new(state);
-
+    pub fn new(interpreter: Interpreter) -> Self {
         Resolver {
             interpreter,
             scopes: vec![],
         }
     }
 
-    fn resolve_stmt(&mut self, stmt: &Stmt) {
-        self.visit_stmt(stmt);
+    pub fn finish(self) -> Interpreter {
+        self.interpreter
     }
 
-    fn resolve_expr(&mut self, expr: &Expr) {
-        self.visit_expr(expr);
-    }
-
-    fn resolve_statements(&mut self, statements: &[Stmt]) {
+    pub fn resolve_statements(&mut self, statements: &[Stmt]) {
         for stmt in statements {
             self.resolve_stmt(stmt);
         }
@@ -73,7 +65,7 @@ impl Resolver {
         }
     }
 
-    pub fn visit_expr(&mut self, expr: &Expr) {
+    fn resolve_expr(&mut self, expr: &Expr) {
         match &expr.data {
             ExprData::Assign { name, value } => {
                 self.resolve_expr(value);
@@ -105,7 +97,7 @@ impl Resolver {
                     );
                 }
 
-                self.resolve_local_expr(expr, &name);
+                self.resolve_local_expr(expr, name);
             }
         }
     }
@@ -120,7 +112,7 @@ impl Resolver {
         self.end_scope();
     }
 
-    pub fn visit_stmt(&mut self, stmt: &Stmt) {
+    fn resolve_stmt(&mut self, stmt: &Stmt) {
         match stmt {
             Stmt::Block { statements } => {
                 self.begin_scope();
@@ -143,7 +135,7 @@ impl Resolver {
                 else_branch,
             } => {
                 self.resolve_expr(condition);
-                self.resolve_stmt(&then_branch);
+                self.resolve_stmt(then_branch);
                 if let Some(else_branch) = else_branch {
                     self.resolve_stmt(else_branch);
                 }

@@ -138,7 +138,7 @@ impl Parser {
         }
 
         if self.catch(&[TT::LeftParen]) {
-            let expr = self.expression()?.into();
+            let expr = self.expression()?;
             self.consume(TT::RightParen, "Expect ')' after expression.")?;
 
             return Ok(Expr::grouping(expr));
@@ -154,7 +154,6 @@ impl Parser {
     }
 
     fn finish_call(&mut self, callee: Expr) -> Result<Expr, ParseError> {
-        let callee = callee.into();
         let mut arguments = vec![];
 
         if !self.check(TokenType::RightParen) {
@@ -197,7 +196,7 @@ impl Parser {
     fn unary(&mut self) -> Result<Expr, ParseError> {
         if self.catch(&[TokenType::Bang, TokenType::Minus]) {
             let op = self.previous().clone();
-            let rhs = self.unary()?.into();
+            let rhs = self.unary()?;
 
             Ok(Expr::unary(op, rhs))
         } else {
@@ -222,7 +221,6 @@ impl Parser {
 
             if let ExprData::Variable { name } = &expr.data {
                 let name = name.clone();
-                let value = value.into();
 
                 return Ok(Expr::assign(name, value));
             }
