@@ -1,4 +1,6 @@
+use std::cell::RefCell;
 use std::fmt::{Debug, Display};
+use std::rc::Rc;
 
 use crate::environment::Environment;
 use crate::error::Exception;
@@ -33,14 +35,21 @@ pub struct LoxFunction {
     name: Token,
     parameters: Vec<Token>,
     body: Vec<Stmt>,
+    closure: Rc<RefCell<Environment>>,
 }
 
 impl LoxFunction {
-    pub fn new(name: Token, parameters: Vec<Token>, body: Vec<Stmt>) -> Self {
+    pub fn new(
+        name: Token,
+        parameters: Vec<Token>,
+        body: Vec<Stmt>,
+        closure: Rc<RefCell<Environment>>,
+    ) -> Self {
         LoxFunction {
             name,
             parameters,
             body,
+            closure,
         }
     }
 }
@@ -85,7 +94,7 @@ impl Function {
             Function::Native(f) => (f.code)(interpreter, arguments),
 
             Function::Lox(declaration) => {
-                let environment = Environment::new_enclosed(interpreter.globals.clone());
+                let environment = Environment::new_enclosed(declaration.closure.clone());
                 for (i, param) in declaration.parameters.iter().enumerate() {
                     environment
                         .borrow_mut()
