@@ -2,21 +2,26 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
+use uuid::Uuid;
+
 use crate::error::Exception;
 use crate::object::Object;
 use crate::token::Token;
 
 #[derive(Debug)]
 pub struct Environment {
+    id: Uuid,
     enclosing: Option<Rc<RefCell<Environment>>>,
     values: HashMap<String, Object>,
 }
 
 impl Environment {
     pub(crate) fn new_raw() -> Self {
+        let id = Uuid::new_v4();
         let values = HashMap::new();
 
         Environment {
+            id,
             enclosing: None,
             values,
         }
@@ -31,10 +36,15 @@ impl Environment {
     }
 
     pub fn new_enclosed(enclosing: Rc<RefCell<Environment>>) -> Rc<RefCell<Self>> {
+        let id = Uuid::new_v4();
         let enclosing = Some(enclosing);
         let values = HashMap::new();
 
-        Rc::new(RefCell::new(Environment { enclosing, values }))
+        Rc::new(RefCell::new(Environment {
+            id,
+            enclosing,
+            values,
+        }))
     }
 
     pub fn define(&mut self, name: &str, value: &Object) {
@@ -75,3 +85,11 @@ impl Environment {
         ))
     }
 }
+
+impl PartialEq for Environment {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl Eq for Environment {}

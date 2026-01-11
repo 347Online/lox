@@ -1,22 +1,23 @@
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::ops::Deref;
 use std::rc::Rc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::environment::Environment;
 use crate::error::Exception;
-use crate::expr::Expr;
+use crate::expr::{Expr, ExprData};
 use crate::function::{LoxFunction, native_fn};
 use crate::lox::{Lox, LoxState};
 use crate::object::Object;
 use crate::stmt::Stmt;
-use crate::token::TokenType;
+use crate::token::{Token, TokenType};
 
 fn stdlib(env: &mut Environment) {
     env.define(
         "clock",
         &native_fn!(|_, _| {
-            Object::Number(
+            Object::from(
                 SystemTime::now()
                     .duration_since(UNIX_EPOCH)
                     .unwrap()
@@ -39,9 +40,10 @@ fn stdlib(env: &mut Environment) {
 
 #[derive(Debug)]
 pub struct Interpreter {
-    state: Rc<RefCell<LoxState>>,
-    pub globals: Rc<RefCell<Environment>>,
+    pub(crate) state: Rc<RefCell<LoxState>>,
+    globals: Rc<RefCell<Environment>>,
     environment: Rc<RefCell<Environment>>,
+    locals: HashMap<Expr, usize>,
 }
 
 impl Interpreter {
@@ -52,25 +54,32 @@ impl Interpreter {
 
         let globals = lib.finish();
         let environment = globals.clone();
+        let locals = HashMap::new();
 
         Interpreter {
             state,
             globals,
             environment,
+            locals,
         }
     }
 
+    fn look_up_var(&self, name: &Token, expr: &Expr) -> Object {
+        let distance = self.locals.get(expr);
+        todo!()
+    }
+
     fn evaluate(&mut self, expr: &Expr) -> Result<Object, Exception> {
-        let value = match expr {
-            Expr::Literal { value } => value.clone(),
-            Expr::Grouping { expr } => self.evaluate(expr.deref())?,
-            Expr::Unary { op, rhs } => match op.kind {
+        let value = match &expr.data {
+            ExprData::Literal { value } => value.clone(),
+            ExprData::Grouping { expr } => self.evaluate(expr.deref())?,
+            ExprData::Unary { op, rhs } => match op.kind {
                 TokenType::Bang => (!self.evaluate(rhs.deref())?.is_truthy()).into(),
 
                 TokenType::Minus => {
-                    if let Expr::Literal {
+                    if let ExprData::Literal {
                         value: Object::Number(value),
-                    } = **rhs
+                    } = rhs.data
                     {
                         Object::Number(-value)
                     } else {
@@ -80,7 +89,7 @@ impl Interpreter {
 
                 _ => unreachable!("no other unary expression"),
             },
-            Expr::Binary { op, lhs, rhs } => {
+            ExprData::Binary { op, lhs, rhs } => {
                 let (lhs, rhs) = (self.evaluate(lhs.as_ref())?, self.evaluate(rhs.as_ref())?);
 
                 macro_rules! binary {
@@ -118,14 +127,15 @@ impl Interpreter {
                     _ => unreachable!(),
                 }
             }
-            Expr::Variable { name } => self.environment.borrow().get(name)?.clone(),
-            Expr::Assign { name, value } => {
+            // ExprData::Variable { name } => self.environment.borrow().get(name)?.clone(),
+            ExprData::Variable { name } => self.look_up_var(name, expr),
+            ExprData::Assign { name, value } => {
                 let value = self.evaluate(value)?;
                 self.environment.borrow_mut().assign(name, &value)?;
 
                 value
             }
-            Expr::Logical { op, lhs, rhs } => {
+            ExprData::Logical { op, lhs, rhs } => {
                 let lhs = self.evaluate(lhs)?;
                 if op.kind == TokenType::Or {
                     if lhs.is_truthy() {
@@ -137,7 +147,7 @@ impl Interpreter {
 
                 self.evaluate(rhs)?
             }
-            Expr::Call {
+            ExprData::Call {
                 callee,
                 paren,
                 arguments,
@@ -202,8 +212,8 @@ impl Interpreter {
             Stmt::Expr { expr } => {
                 self.evaluate(expr)?;
             }
-            Stmt::Print { value } => {
-                let value = self.evaluate(value)?;
+            Stmt::Print { expr } => {
+                let value = self.evaluate(expr)?;
                 println!("{value}");
             }
             Stmt::Var { name, initializer } => {
@@ -267,9 +277,9 @@ impl Interpreter {
         Ok(())
     }
 
-    pub fn interpret(&mut self, statements: Vec<Stmt>) {
+    pub fn interpret(&mut self, statements: &[Stmt]) {
         let result = 'block: {
-            for stmt in &statements {
+            for stmt in statements {
                 match self.execute(stmt) {
                     Ok(_) => (),
                     x => break 'block x,

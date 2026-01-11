@@ -23,7 +23,7 @@ pub enum Stmt {
         else_branch: Option<SubStmt>,
     },
     Print {
-        value: Expr,
+        expr: Expr,
     },
     Return {
         keyword: Token,

@@ -60,7 +60,7 @@ impl Lox {
             return;
         }
 
-        self.interpreter.interpret(statements);
+        self.interpreter.interpret(&statements);
     }
 
     pub fn error(state: RefMut<LoxState>, line: usize, message: &str) {

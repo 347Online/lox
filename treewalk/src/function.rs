@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::fmt::{Debug, Display};
+use std::hash::Hash;
 use std::rc::Rc;
 
 use crate::environment::Environment;
@@ -9,7 +10,7 @@ use crate::object::Object;
 use crate::stmt::Stmt;
 use crate::token::Token;
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct NativeFn {
     arity: usize,
     code: fn(&mut Interpreter, &[Object]) -> Object,
@@ -32,6 +33,7 @@ impl Debug for NativeFn {
 
 #[derive(Debug, Clone)]
 pub struct LoxFunction {
+    id: Uuid,
     name: Token,
     parameters: Vec<Token>,
     body: Vec<Stmt>,
@@ -46,6 +48,7 @@ impl LoxFunction {
         closure: Rc<RefCell<Environment>>,
     ) -> Self {
         LoxFunction {
+            id: Uuid::new_v4(),
             name,
             parameters,
             body,
@@ -54,7 +57,21 @@ impl LoxFunction {
     }
 }
 
-#[derive(Debug, Clone)]
+impl PartialEq for LoxFunction {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl Eq for LoxFunction {}
+
+impl Hash for LoxFunction {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Function {
     Native(NativeFn),
     Lox(LoxFunction),
@@ -72,6 +89,7 @@ macro_rules! native_fn {
 }
 
 pub(crate) use native_fn;
+use uuid::Uuid;
 
 impl Function {
     pub fn native(arity: usize, code: fn(&mut Interpreter, &[Object]) -> Object) -> Self {

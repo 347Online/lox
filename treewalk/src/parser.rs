@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::error::ParseError;
-use crate::expr::Expr;
+use crate::expr::{Expr, ExprData};
 use crate::lox::{Lox, LoxState, MAX_ARGS};
 use crate::stmt::Stmt;
 use crate::token::{Token, TokenType};
@@ -21,7 +21,7 @@ macro_rules! rule {
             while self.catch(&[TokenType::$kind$(, TokenType::$kinds)*]) {
                 let op = self.previous().clone();
                 let rhs = self.$next()?.into();
-                expr = Expr::$expr{ op, lhs: expr.into(), rhs };
+                expr = Expr::new(ExprData::$expr{ op, lhs: expr.into(), rhs });
             }
 
             Ok(expr)
@@ -141,13 +141,13 @@ impl Parser {
             let expr = self.expression()?.into();
             self.consume(TT::RightParen, "Expect ')' after expression.")?;
 
-            return Ok(Expr::Grouping { expr });
+            return Ok(Expr::grouping(expr));
         }
 
         if self.catch(&[TT::Identifier]) {
             let name = self.previous().clone();
 
-            return Ok(Expr::Variable { name });
+            return Ok(Expr::variable(name));
         }
 
         Err(self.error(self.peek(), "Expect expression."))
@@ -177,11 +177,7 @@ impl Parser {
             .consume(TokenType::RightParen, "Expect ')' after arguments.")?
             .clone();
 
-        Ok(Expr::Call {
-            callee,
-            paren,
-            arguments,
-        })
+        Ok(Expr::call(callee, paren, arguments))
     }
 
     fn call(&mut self) -> Result<Expr, ParseError> {
@@ -203,7 +199,7 @@ impl Parser {
             let op = self.previous().clone();
             let rhs = self.unary()?.into();
 
-            Ok(Expr::Unary { op, rhs })
+            Ok(Expr::unary(op, rhs))
         } else {
             self.call()
         }
@@ -224,11 +220,11 @@ impl Parser {
             let equals = self.previous().clone();
             let value = self.assignment()?;
 
-            if let Expr::Variable { name } = &expr {
+            if let ExprData::Variable { name } = &expr.data {
                 let name = name.clone();
                 let value = value.into();
 
-                return Ok(Expr::Assign { name, value });
+                return Ok(Expr::assign(name, value));
             }
 
             self.error(&equals, "Invalid assignment target.");
@@ -242,11 +238,11 @@ impl Parser {
     }
 
     fn print_statement(&mut self) -> Result<Stmt, ParseError> {
-        let value = self.expression()?;
+        let expr = self.expression()?;
 
         self.consume(TokenType::Semicolon, "Expect ';' after value.")?;
 
-        Ok(Stmt::Print { value })
+        Ok(Stmt::Print { expr })
     }
 
     fn block(&mut self) -> Result<Vec<Stmt>, ParseError> {

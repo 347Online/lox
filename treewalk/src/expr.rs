@@ -1,11 +1,14 @@
 use std::fmt::Debug;
+use std::hash::Hash;
 use std::ops::{Deref, DerefMut};
+
+use uuid::Uuid;
 
 use crate::object::Object;
 use crate::token::Token;
 
 #[derive(Debug, Clone)]
-pub enum Expr {
+pub enum ExprData {
     Assign {
         name: Token,
         value: SubExpr,
@@ -40,18 +43,91 @@ pub enum Expr {
     },
 }
 
+#[derive(Debug, Clone)]
+pub struct Expr {
+    pub data: ExprData,
+    id: Uuid,
+}
+
 impl Expr {
+    pub(crate) fn new(data: ExprData) -> Self {
+        Expr {
+            data,
+            id: Uuid::new_v4(),
+        }
+    }
+
+    pub fn assign(name: Token, value: Expr) -> Self {
+        Expr::new(ExprData::Assign {
+            name,
+            value: value.into(),
+        })
+    }
+
+    pub fn binary(op: Token, lhs: Expr, rhs: Expr) -> Self {
+        Expr::new(ExprData::Binary {
+            op,
+            lhs: lhs.into(),
+            rhs: rhs.into(),
+        })
+    }
+
+    pub fn call(callee: Expr, paren: Token, arguments: Vec<Expr>) -> Self {
+        Expr::new(ExprData::Call {
+            callee: callee.into(),
+            paren,
+            arguments,
+        })
+    }
+
+    pub fn grouping(expr: Expr) -> Self {
+        Expr::new(ExprData::Grouping { expr: expr.into() })
+    }
+
+    pub fn logical(op: Token, lhs: Expr, rhs: Expr) -> Self {
+        Expr::new(ExprData::Logical {
+            op,
+            lhs: lhs.into(),
+            rhs: rhs.into(),
+        })
+    }
+
     pub fn literal<T>(value: T) -> Self
     where
         Object: From<T>,
     {
-        let value = value.into();
+        Expr::new(ExprData::Literal {
+            value: value.into(),
+        })
+    }
 
-        Expr::Literal { value }
+    pub fn unary(op: Token, rhs: Expr) -> Self {
+        Expr::new(ExprData::Unary {
+            op,
+            rhs: rhs.into(),
+        })
+    }
+
+    pub fn variable(name: Token) -> Self {
+        Expr::new(ExprData::Variable { name })
     }
 
     pub fn nil() -> Self {
-        Expr::Literal { value: Object::Nil }
+        Expr::new(ExprData::Literal { value: Object::Nil })
+    }
+}
+
+impl PartialEq for Expr {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl Eq for Expr {}
+
+impl Hash for Expr {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
     }
 }
 

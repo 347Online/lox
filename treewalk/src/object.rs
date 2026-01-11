@@ -1,12 +1,14 @@
 use std::fmt::Display;
 
+use ordered_float::OrderedFloat;
+
 use crate::function::{Function, LoxFunction, NativeFn};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, Hash)]
 pub enum Object {
     Nil,
     String(String),
-    Number(f64),
+    Number(OrderedFloat<f64>),
     Boolean(bool),
     Fn(Function),
 }
@@ -44,6 +46,12 @@ impl From<&str> for Object {
 
 impl From<f64> for Object {
     fn from(value: f64) -> Self {
+        Object::Number(OrderedFloat(value))
+    }
+}
+
+impl From<OrderedFloat<f64>> for Object {
+    fn from(value: OrderedFloat<f64>) -> Self {
         Object::Number(value)
     }
 }
