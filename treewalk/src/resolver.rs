@@ -6,9 +6,16 @@ use crate::lox::Lox;
 use crate::stmt::Stmt;
 use crate::token::Token;
 
+#[derive(Clone, Copy, PartialEq)]
+enum FunctionType {
+    None,
+    Function,
+}
+
 pub struct Resolver {
     interpreter: Interpreter,
     scopes: Vec<HashMap<String, bool>>,
+    current_function: FunctionType,
 }
 
 impl Resolver {
@@ -16,6 +23,7 @@ impl Resolver {
         Resolver {
             interpreter,
             scopes: vec![],
+            current_function: FunctionType::None,
         }
     }
 
@@ -43,6 +51,13 @@ impl Resolver {
         };
 
         if let Some(scope) = self.scopes.last_mut() {
+            if scope.contains_key(&name.lexeme) {
+                Lox::error(
+                    self.interpreter.state.borrow_mut(),
+                    name.line,
+                    "Already a variable with this name in this scope.",
+                );
+            }
             scope.insert(name.lexeme.to_owned(), false);
         }
     }
@@ -102,7 +117,10 @@ impl Resolver {
         }
     }
 
-    fn resolve_function(&mut self, parameters: &[Token], body: &[Stmt]) {
+    fn resolve_function(&mut self, parameters: &[Token], body: &[Stmt], kind: FunctionType) {
+        let enclosing_function = self.current_function;
+        self.current_function = kind;
+
         self.begin_scope();
         for param in parameters {
             self.declare(param);
@@ -110,6 +128,8 @@ impl Resolver {
         }
         self.resolve_statements(body);
         self.end_scope();
+
+        self.current_function = enclosing_function;
     }
 
     fn resolve_stmt(&mut self, stmt: &Stmt) {
@@ -127,7 +147,7 @@ impl Resolver {
             } => {
                 self.declare(name);
                 self.define(name);
-                self.resolve_function(parameters, body);
+                self.resolve_function(parameters, body, FunctionType::Function);
             }
             Stmt::If {
                 condition,
@@ -141,7 +161,14 @@ impl Resolver {
                 }
             }
             Stmt::Print { expr } => self.resolve_expr(expr),
-            Stmt::Return { expr, .. } => {
+            Stmt::Return { keyword, expr } => {
+                if self.current_function == FunctionType::None {
+                    Lox::error(
+                        self.interpreter.state.borrow_mut(),
+                        keyword.line,
+                        "Can't return from top-level code.",
+                    );
+                }
                 if let Some(expr) = expr {
                     self.resolve_expr(expr);
                 }

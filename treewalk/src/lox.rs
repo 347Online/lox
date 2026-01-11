@@ -63,8 +63,13 @@ impl Lox {
 
         let mut resolver = Resolver::new(std::mem::take(&mut self.interpreter).unwrap());
         resolver.resolve_statements(&statements);
-        let mut interpreter = resolver.finish();
 
+        // Stop if there was a resolution error.
+        if self.state.borrow().had_error {
+            return;
+        };
+
+        let mut interpreter = resolver.finish();
         interpreter.interpret(&statements);
         self.interpreter = Some(interpreter);
     }
