@@ -1,7 +1,7 @@
 use std::fmt::{Debug, Display};
 
 use crate::environment::Environment;
-use crate::error::RuntimeError;
+use crate::error::Exception;
 use crate::interpreter::Interpreter;
 use crate::object::Object;
 use crate::stmt::Stmt;
@@ -80,7 +80,7 @@ impl Function {
         &self,
         interpreter: &mut Interpreter,
         arguments: &[Object],
-    ) -> Result<Object, RuntimeError> {
+    ) -> Result<Object, Exception> {
         let value = match self {
             Function::Native(f) => (f.code)(interpreter, arguments),
 
@@ -92,7 +92,13 @@ impl Function {
                         .define(&param.lexeme, &arguments[i]);
                 }
 
-                interpreter.execute_block(&declaration.body, environment)?;
+                let result = interpreter.execute_block(&declaration.body, environment);
+
+                if let Err(Exception::Return(value)) = result {
+                    return Ok(value);
+                } else {
+                    result?; // Propagate actual errors
+                }
 
                 Object::Nil
             }

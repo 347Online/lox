@@ -10,7 +10,7 @@ use rustyline::DefaultEditor;
 #[cfg(feature = "fancy-repl")]
 use rustyline::error::ReadlineError;
 
-use crate::error::RuntimeError;
+use crate::error::Exception;
 use crate::exit::{RUNTIME_ERROR, SYNTAX_ERROR};
 use crate::interpreter::Interpreter;
 use crate::parser::Parser;
@@ -171,7 +171,7 @@ impl Lox {
         Ok(())
     }
 
-    pub fn runtime_error(mut state: RefMut<LoxState>, err: RuntimeError) {
+    pub fn runtime_error(mut state: RefMut<LoxState>, err: Exception) {
         eprintln!("{err}");
         state.had_runtime_error = true;
     }

@@ -25,6 +25,10 @@ pub enum Stmt {
     Print {
         value: Expr,
     },
+    Return {
+        keyword: Token,
+        expr: Option<Expr>,
+    },
     Var {
         name: Token,
         initializer: Option<Expr>,

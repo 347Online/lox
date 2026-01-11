@@ -4,7 +4,7 @@ use std::rc::Rc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::environment::Environment;
-use crate::error::RuntimeError;
+use crate::error::Exception;
 use crate::expr::Expr;
 use crate::function::{LoxFunction, native_fn};
 use crate::lox::{Lox, LoxState};
@@ -60,7 +60,7 @@ impl Interpreter {
         }
     }
 
-    fn evaluate(&mut self, expr: &Expr) -> Result<Object, RuntimeError> {
+    fn evaluate(&mut self, expr: &Expr) -> Result<Object, Exception> {
         let value = match expr {
             Expr::Literal { value } => value.clone(),
             Expr::Grouping { expr } => self.evaluate(expr.deref())?,
@@ -74,7 +74,7 @@ impl Interpreter {
                     {
                         Object::Number(-value)
                     } else {
-                        return Err(RuntimeError::num(op.clone()));
+                        return Err(Exception::num(op.clone()));
                     }
                 }
 
@@ -88,7 +88,7 @@ impl Interpreter {
                         if let (Object::Number(lhs), Object::Number(rhs)) = (lhs, rhs) {
                             Ok(Object::$kind(lhs $op rhs))
                         } else {
-                            Err(RuntimeError::num_pair(op.clone()))
+                            Err(Exception::num_pair(op.clone()))
                         }
                     };
                 }
@@ -103,7 +103,7 @@ impl Interpreter {
                         (Object::String(lhs), Object::String(rhs)) => (lhs + &rhs).as_str().into(),
 
                         _ => {
-                            return Err(RuntimeError::nums_or_strings(op.clone()));
+                            return Err(Exception::nums_or_strings(op.clone()));
                         }
                     },
 
@@ -151,15 +151,12 @@ impl Interpreter {
 
                 let Object::Fn(function) = callee else {
                     let paren = paren.clone();
-                    return Err(RuntimeError::new(
-                        paren,
-                        "Can only call functions and classes",
-                    ));
+                    return Err(Exception::new(paren, "Can only call functions and classes"));
                 };
 
                 let paren = paren.clone();
                 if arguments.len() != function.arity() {
-                    return Err(RuntimeError::new(
+                    return Err(Exception::new(
                         paren,
                         format!(
                             "Expected {} arguments but got {}.",
@@ -179,7 +176,7 @@ impl Interpreter {
         &mut self,
         statements: &[Stmt],
         environment: Rc<RefCell<Environment>>,
-    ) -> Result<(), RuntimeError> {
+    ) -> Result<(), Exception> {
         let previous = self.environment.clone();
 
         let result = 'block: {
@@ -200,7 +197,7 @@ impl Interpreter {
         result
     }
 
-    fn execute(&mut self, stmt: &Stmt) -> Result<(), RuntimeError> {
+    fn execute(&mut self, stmt: &Stmt) -> Result<(), Exception> {
         match stmt {
             Stmt::Expr { expr } => {
                 self.evaluate(expr)?;
@@ -251,6 +248,15 @@ impl Interpreter {
                     .borrow_mut()
                     .define(&name.lexeme, &Object::from(function));
             }
+            Stmt::Return { expr, .. } => {
+                let value = if let Some(expr) = expr {
+                    self.evaluate(expr)?
+                } else {
+                    Object::Nil
+                };
+
+                return Err(Exception::Return(value));
+            }
         }
 
         Ok(())
@@ -270,7 +276,10 @@ impl Interpreter {
 
         match result {
             Ok(_) => (),
-            Err(err) => Lox::runtime_error(self.state.borrow_mut(), err),
+            Err(Exception::Error { token, message }) => {
+                Lox::runtime_error(self.state.borrow_mut(), Exception::Error { token, message })
+            }
+            Err(Exception::Return(x)) => unreachable!("Escaped return signal: {x}"),
         }
     }
 }

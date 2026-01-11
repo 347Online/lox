@@ -349,7 +349,22 @@ impl Parser {
         Ok(body)
     }
 
+    fn return_statement(&mut self) -> Result<Stmt, ParseError> {
+        let keyword = self.previous().clone();
+        let expr = if self.check(TokenType::Semicolon) {
+            None
+        } else {
+            Some(self.expression()?)
+        };
+
+        self.consume(TokenType::Semicolon, "Expect ';' after return value.")?;
+        Ok(Stmt::Return { keyword, expr })
+    }
+
     fn statement(&mut self) -> Result<Stmt, ParseError> {
+        if self.catch(&[TokenType::Return]) {
+            return self.return_statement();
+        }
         if self.catch(&[TokenType::For]) {
             return self.for_statement();
         }

@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use crate::error::RuntimeError;
+use crate::error::Exception;
 use crate::object::Object;
 use crate::token::Token;
 
@@ -41,7 +41,7 @@ impl Environment {
         self.values.insert(name.to_owned(), value.clone());
     }
 
-    pub fn get(&self, name: &Token) -> Result<Object, RuntimeError> {
+    pub fn get(&self, name: &Token) -> Result<Object, Exception> {
         if let Some(value) = self.values.get(&name.lexeme) {
             return Ok(value.clone());
         }
@@ -50,13 +50,13 @@ impl Environment {
             return enclosing.borrow().get(name);
         }
 
-        Err(RuntimeError::new(
+        Err(Exception::new(
             name.clone(),
             format!("Undefined variable '{}'.", name.lexeme),
         ))
     }
 
-    pub fn assign(&mut self, name: &Token, value: &Object) -> Result<(), RuntimeError> {
+    pub fn assign(&mut self, name: &Token, value: &Object) -> Result<(), Exception> {
         if self.values.contains_key(&name.lexeme) {
             self.values.insert(name.lexeme.to_owned(), value.clone());
 
@@ -69,7 +69,7 @@ impl Environment {
             return Ok(());
         }
 
-        Err(RuntimeError::new(
+        Err(Exception::new(
             name.clone(),
             format!("Undefined variable '{}'.", name.lexeme),
         ))
