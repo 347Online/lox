@@ -92,7 +92,7 @@ impl Lox {
     }
 
     fn report(mut state: RefMut<LoxState>, line: usize, at: impl Display, message: &str) {
-        eprintln!("[line {line} ] Error{at}: {message}");
+        eprintln!("[line {line}] Error{at}: {message}");
         state.had_error = true;
     }
 

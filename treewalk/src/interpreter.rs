@@ -175,7 +175,10 @@ impl Interpreter {
 
                 let Object::Fn(function) = callee else {
                     let paren = paren.clone();
-                    return Err(Exception::new(paren, "Can only call functions and classes"));
+                    return Err(Exception::new(
+                        paren,
+                        "Can only call functions and classes.",
+                    ));
                 };
 
                 let paren = paren.clone();

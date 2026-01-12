@@ -52,9 +52,9 @@ impl Resolver {
 
         if let Some(scope) = self.scopes.last_mut() {
             if scope.contains_key(&name.lexeme) {
-                Lox::error(
+                Lox::error_at(
                     self.interpreter.state.borrow_mut(),
-                    name.line,
+                    name,
                     "Already a variable with this name in this scope.",
                 );
             }
@@ -105,9 +105,9 @@ impl Resolver {
                 if let Some(scope) = self.scopes.last()
                     && let Some(false) = scope.get(&name.lexeme)
                 {
-                    Lox::error(
+                    Lox::error_at(
                         self.interpreter.state.borrow_mut(),
-                        name.line,
+                        name,
                         "Can't read local variable in its own initializer.",
                     );
                 }
