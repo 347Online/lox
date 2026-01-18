@@ -1,45 +1,92 @@
-use num_enum::{IntoPrimitive, TryFromPrimitive};
+use num_enum::{FromPrimitive, IntoPrimitive};
 
-#[derive(TryFromPrimitive, IntoPrimitive)]
+use crate::value::Value;
+
+#[derive(FromPrimitive, IntoPrimitive)]
 #[repr(u8)]
 pub enum OpCode {
-    #[num_enum(default)]
+    Constant,
     Return,
+
+    #[num_enum(catch_all)]
+    Unknown(u8),
 }
 
+#[derive(Debug)]
 pub struct Chunk {
     code: Vec<u8>,
+    lines: Vec<usize>,
+    constants: Vec<Value>,
 }
 
 impl Chunk {
+    #[must_use]
     pub fn new() -> Self {
-        Chunk { code: vec![] }
+        Chunk {
+            code: vec![],
+            lines: vec![],
+            constants: vec![],
+        }
     }
 
-    pub fn write_byte(&mut self, byte: u8) {
+    pub fn add_constant(&mut self, value: Value) -> usize {
+        self.constants.push(value);
+
+        self.constants.len() - 1
+    }
+
+    pub fn write_byte(&mut self, byte: u8, line: usize) {
         self.code.push(byte);
+        self.lines.push(line);
     }
 
-    pub fn write(&mut self, instruction: OpCode) {
-        self.write_byte(instruction.into());
+    /// .
+    ///
+    /// # Panics
+    ///
+    /// Panics if addr wider than u8.
+    pub fn write_constant(&mut self, addr: usize, line: usize) {
+        let byte = u8::try_from(addr).unwrap();
+        self.write_byte(byte, line);
+    }
+
+    pub fn write_instruction(&mut self, instruction: OpCode, line: usize) {
+        self.write_byte(instruction.into(), line);
     }
 
     fn simple_instruction(name: &'static str, offset: usize) -> usize {
         println!("{name}");
+
         offset + 1
+    }
+
+    fn constant_instruction(name: &'static str, chunk: &Chunk, offset: usize) -> usize {
+        let constant = chunk.code[offset + 1];
+        let value = chunk.constants[constant as usize];
+        println!("{name:<16} {constant:>4} '{value}'");
+
+        offset + 2
     }
 
     fn disassemble_instruction(&self, offset: usize) -> usize {
         print!("{offset:04} ");
 
-        let byte = self.code[offset];
-        if let Ok(instruction) = byte.try_into() {
-            match instruction {
-                OpCode::Return => Chunk::simple_instruction("OP_RETURN", offset),
-            }
+        if offset > 0 && self.lines[offset] == self.lines[offset - 1] {
+            print!("   | ");
         } else {
-            println!("Unknown opcode {byte}");
-            offset + 1
+            let line = self.lines[offset];
+            print!("{line:>4} ");
+        }
+
+        match self.code[offset].into() {
+            OpCode::Constant => Chunk::constant_instruction("OP_CONSTANT", self, offset),
+            OpCode::Return => Chunk::simple_instruction("OP_RETURN", offset),
+
+            OpCode::Unknown(byte) => {
+                println!("Unknown opcode {byte}");
+
+                offset + 1
+            }
         }
     }
 
