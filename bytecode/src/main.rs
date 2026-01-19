@@ -11,5 +11,6 @@ fn main() {
 
     chunk.write_instruction(OpCode::Return, 123);
 
+    #[cfg(feature = "debug_trace_execution")]
     chunk.disassemble("test chunk");
 }
