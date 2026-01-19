@@ -1,4 +1,8 @@
 use crate::chunk::{Chunk, OpCode};
+use crate::stack::Stack;
+use crate::value::Value;
+
+pub const STACK_MAX: usize = 256;
 
 pub enum InterpretError {
     CompileError,
@@ -10,6 +14,7 @@ pub type InterpretResult = Result<(), InterpretError>;
 pub struct Vm {
     chunk: Chunk,
     ip: usize,
+    stack: Stack<Value, STACK_MAX>,
 }
 
 impl Vm {
@@ -17,7 +22,16 @@ impl Vm {
         Vm {
             chunk: Chunk::new(),
             ip: 0,
+            stack: Stack::new(),
         }
+    }
+
+    fn push(&mut self, value: Value) {
+        self.stack.push(value);
+    }
+
+    fn pop(&mut self) -> Value {
+        self.stack.pop()
     }
 
     pub fn run(&mut self) -> InterpretResult {
@@ -38,15 +52,27 @@ impl Vm {
         loop {
             let instruction: OpCode = read_byte!().into();
 
-            #[cfg(feature = "debug_trace_execution")]
-            self.chunk.disassemble_instruction(self.ip);
+            #[cfg(debug_assertions)]
+            {
+                print!("          ");
+                for slot in self.stack.iter() {
+                    print!("[ {slot} ]")
+                }
+                println!();
+
+                self.chunk.disassemble_instruction(self.ip - 1);
+            }
 
             match instruction {
                 OpCode::Constant => {
                     let constant = read_constant!();
-                    println!("{constant}");
+                    self.push(constant);
                 }
-                OpCode::Return => return Ok(()),
+                OpCode::Return => {
+                    println!("{}", self.pop());
+
+                    return Ok(());
+                }
 
                 OpCode::Unknown(_) => unreachable!(),
             }

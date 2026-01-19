@@ -5,7 +5,3 @@ edition = "2024"
 
 [dependencies]
 num_enum = "0.7.5"
-
-[features]
-debug_trace_execution = []
-default = []

@@ -1,7 +1,8 @@
 #![feature(derive_from)]
 #[warn(clippy::pedantic)]
 pub mod chunk;
-#[cfg(feature = "debug_trace_execution")]
+#[cfg(debug_assertions)]
 pub mod debug;
+pub mod stack;
 pub mod value;
 pub mod vm;

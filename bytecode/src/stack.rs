@@ -55,6 +55,10 @@ impl<T, const N: usize> Stack<T, N> {
     pub const fn as_slice(&self) -> &[T] {
         self.inner.as_slice()
     }
+
+    pub fn iter(&self) -> std::slice::Iter<'_, T> {
+        self.inner.iter()
+    }
 }
 
 impl<T, const N: usize> Default for Stack<T, N> {

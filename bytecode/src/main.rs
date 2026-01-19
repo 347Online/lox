@@ -1,4 +1,5 @@
 use bytecode::chunk::{Chunk, OpCode};
+use bytecode::vm::Vm;
 
 fn main() {
     let args: Vec<_> = std::env::args().collect();
@@ -11,6 +12,9 @@ fn main() {
 
     chunk.write_instruction(OpCode::Return, 123);
 
-    #[cfg(feature = "debug_trace_execution")]
+    #[cfg(debug_assertions)]
     chunk.disassemble("test chunk");
+
+    let mut vm = Vm::new();
+    let _ = vm.interpret(chunk);
 }
