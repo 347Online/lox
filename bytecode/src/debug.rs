@@ -27,6 +27,11 @@ impl Chunk {
 
         match self.code[offset].into() {
             OpCode::Constant => Chunk::constant_instruction("OP_CONSTANT", self, offset),
+            OpCode::Negate => Chunk::simple_instruction("OP_NEGATE", offset),
+            OpCode::Add => Chunk::simple_instruction("OP_ADD", offset),
+            OpCode::Subtract => Chunk::simple_instruction("OP_SUBTRACT", offset),
+            OpCode::Multiply => Chunk::simple_instruction("OP_MULTIPLY", offset),
+            OpCode::Divide => Chunk::simple_instruction("OP_DIVIDE", offset),
             OpCode::Return => Chunk::simple_instruction("OP_RETURN", offset),
 
             OpCode::Unknown(byte) => {

@@ -49,6 +49,14 @@ impl Vm {
             };
         }
 
+        macro_rules! binary_op {
+            ($op:tt) => {{
+                let b = self.pop();
+                let a = self.pop();
+                self.push(a $op b);
+            }};
+        }
+
         loop {
             let instruction: OpCode = read_byte!().into();
 
@@ -68,12 +76,19 @@ impl Vm {
                     let constant = read_constant!();
                     self.push(constant);
                 }
+                OpCode::Add => binary_op!(+),
+                OpCode::Subtract => binary_op!(-),
+                OpCode::Multiply => binary_op!(*),
+                OpCode::Divide => binary_op!(/),
+                OpCode::Negate => {
+                    let value = self.pop();
+                    self.push(-value);
+                }
                 OpCode::Return => {
                     println!("{}", self.pop());
 
                     return Ok(());
                 }
-
                 OpCode::Unknown(_) => unreachable!(),
             }
         }

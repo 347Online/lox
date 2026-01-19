@@ -10,6 +10,19 @@ fn main() {
     chunk.write_instruction(OpCode::Constant, 123);
     chunk.write_constant(constant, 123);
 
+    let constant = chunk.add_constant(3.4);
+    chunk.write_instruction(OpCode::Constant, 123);
+    chunk.write_constant(constant, 123);
+
+    chunk.write_instruction(OpCode::Add, 123);
+
+    let constant = chunk.add_constant(5.6);
+    chunk.write_instruction(OpCode::Constant, 123);
+    chunk.write_constant(constant, 123);
+
+    chunk.write_instruction(OpCode::Divide, 123);
+    chunk.write_instruction(OpCode::Negate, 123);
+
     chunk.write_instruction(OpCode::Return, 123);
 
     #[cfg(debug_assertions)]

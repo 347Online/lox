@@ -6,6 +6,11 @@ use crate::value::Value;
 #[repr(u8)]
 pub enum OpCode {
     Constant,
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+    Negate,
     Return,
 
     #[num_enum(catch_all)]
