@@ -5,13 +5,13 @@ use std::fs::read_to_string;
 use std::io::{Write, stdin, stdout};
 use std::rc::Rc;
 
+use common::exit::{RUNTIME_ERROR, SYNTAX_ERROR};
 #[cfg(feature = "fancy-repl")]
 use rustyline::DefaultEditor;
 #[cfg(feature = "fancy-repl")]
 use rustyline::error::ReadlineError;
 
 use crate::error::Exception;
-use crate::exit::{RUNTIME_ERROR, SYNTAX_ERROR};
 use crate::interpreter::Interpreter;
 use crate::parser::Parser;
 use crate::resolver::Resolver;

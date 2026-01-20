@@ -1,4 +1,4 @@
-use treewalk::exit::TOO_MANY_ARGS;
+use common::exit::TOO_MANY_ARGS;
 use treewalk::lox::Lox;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

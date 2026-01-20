@@ -24,6 +24,7 @@ checksum = "5dd9dc738b7a8311c7ade152424974d8115f2cdad61e8dab8dac9f2362298510"
 name = "bytecode"
 version = "0.1.0"
 dependencies = [
+ "common",
  "num_enum",
 ]
 
@@ -47,6 +48,10 @@ checksum = "bde03770d3df201d4fb868f2c9c59e66a3e4e2bd06692a0fe701e7103c7e84d4"
 dependencies = [
  "error-code",
 ]
+
+[[package]]
+name = "common"
+version = "0.1.0"
 
 [[package]]
 name = "endian-type"
@@ -380,6 +385,7 @@ dependencies = [
 name = "treewalk"
 version = "0.1.0"
 dependencies = [
+ "common",
  "ordered-float",
  "rustyline",
  "uuid",

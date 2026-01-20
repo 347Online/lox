@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+common = { version = "0.1.0", path = "../common" }
 ordered-float = "5.1.0"
 rustyline = { version = "17.0.2", optional = true }
 uuid = { version = "1.19.0", features = ["v4"] }
