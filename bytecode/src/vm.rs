@@ -1,12 +1,25 @@
+use std::fs::read_to_string;
+use std::io::{Write, stdin, stdout};
+
+use common::exit::{IO_ERROR, RUNTIME_ERROR, SYNTAX_ERROR};
+
 use crate::chunk::{Chunk, OpCode};
+use crate::compiler::compile;
 use crate::stack::Stack;
 use crate::value::Value;
 
 pub const STACK_MAX: usize = 256;
 
 pub enum InterpretError {
+    IoError(std::io::Error),
     CompileError,
     RuntimeError,
+}
+
+impl From<std::io::Error> for InterpretError {
+    fn from(value: std::io::Error) -> Self {
+        InterpretError::IoError(value)
+    }
 }
 
 pub type InterpretResult = Result<(), InterpretError>;
@@ -94,11 +107,10 @@ impl Vm {
         }
     }
 
-    pub fn interpret(&mut self, chunk: Chunk) -> InterpretResult {
-        self.chunk = chunk;
-        self.ip = 0;
+    pub fn interpret(&mut self, source: &str) -> InterpretResult {
+        compile(source);
 
-        self.run()
+        Ok(())
     }
 }
 
@@ -106,4 +118,54 @@ impl Default for Vm {
     fn default() -> Self {
         Self::new()
     }
+}
+
+fn read_line(buf: &mut String) {
+    if stdin().read_line(buf).is_err() {
+        std::process::exit(IO_ERROR);
+    }
+}
+
+fn prompt() {
+    print!("> ");
+    if stdout().lock().flush().is_err() {
+        std::process::exit(IO_ERROR);
+    }
+}
+
+pub fn repl() {
+    let mut line = String::new();
+
+    loop {
+        prompt();
+
+        read_line(&mut line);
+
+        if line.is_empty() {
+            println!();
+            break;
+        }
+
+        let _ = Vm::new().interpret(&line);
+        line.clear();
+    }
+}
+
+pub fn run_file(path: &str) {
+    let Ok(source) = read_to_string(path) else {
+        eprintln!("Could not read file \"{path}\".");
+        std::process::exit(IO_ERROR);
+    };
+
+    let error_code = match Vm::new().interpret(&source) {
+        Ok(_) => return,
+
+        Err(err) => match err {
+            InterpretError::IoError(_) => IO_ERROR,
+            InterpretError::CompileError => SYNTAX_ERROR,
+            InterpretError::RuntimeError => RUNTIME_ERROR,
+        },
+    };
+
+    std::process::exit(error_code)
 }

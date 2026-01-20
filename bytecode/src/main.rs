@@ -1,33 +1,14 @@
-use bytecode::chunk::{Chunk, OpCode};
-use bytecode::vm::Vm;
+use bytecode::vm::{repl, run_file};
 
 fn main() {
     let args: Vec<_> = std::env::args().collect();
 
-    let mut chunk = Chunk::new();
-
-    let constant = chunk.add_constant(1.2);
-    chunk.write_instruction(OpCode::Constant, 123);
-    chunk.write_constant(constant, 123);
-
-    let constant = chunk.add_constant(3.4);
-    chunk.write_instruction(OpCode::Constant, 123);
-    chunk.write_constant(constant, 123);
-
-    chunk.write_instruction(OpCode::Add, 123);
-
-    let constant = chunk.add_constant(5.6);
-    chunk.write_instruction(OpCode::Constant, 123);
-    chunk.write_constant(constant, 123);
-
-    chunk.write_instruction(OpCode::Divide, 123);
-    chunk.write_instruction(OpCode::Negate, 123);
-
-    chunk.write_instruction(OpCode::Return, 123);
-
-    #[cfg(debug_assertions)]
-    chunk.disassemble("test chunk");
-
-    let mut vm = Vm::new();
-    let _ = vm.interpret(chunk);
+    if args.len() == 1 {
+        repl();
+    } else if args.len() == 2 {
+        run_file(&args[1]);
+    } else {
+        eprintln!("Usage: bytecode [path]");
+        std::process::exit(64);
+    }
 }
